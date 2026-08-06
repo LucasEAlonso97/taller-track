@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 
+const API_URL =
+  import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+
 interface HealthResponse {
   status: 'ok';
   service: string;
@@ -19,9 +22,7 @@ function App() {
   useEffect(() => {
     const checkApiConnection = async (): Promise<void> => {
       try {
-        const response = await fetch(
-          'http://localhost:3000/api/health',
-        );
+       const response = await fetch(`${API_URL}/health`);
 
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
