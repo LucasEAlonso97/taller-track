@@ -6,6 +6,7 @@ import {
 } from 'react';
 import './App.css';
 
+import { DevicesPanel } from './components/DevicesPanel';
 import { RepairOrdersPanel } from './components/RepairOrdersPanel';
 
 import {
@@ -21,7 +22,10 @@ import type {
   UpdateClientInput,
 } from './types/client';
 
-type ActiveSection = 'clients' | 'repairs';
+type ActiveSection =
+  | 'clients'
+  | 'devices'
+  | 'repairs';
 
 const initialForm: CreateClientInput = {
   firstName: '',
@@ -249,9 +253,15 @@ function App() {
           </button>
 
           <button
-            className="nav-item"
+            className={`nav-item ${
+              activeSection === 'devices'
+                ? 'active'
+                : ''
+            }`}
             type="button"
-            disabled
+            onClick={() =>
+              handleSectionChange('devices')
+            }
           >
             Equipos
           </button>
@@ -449,12 +459,8 @@ function App() {
 
                             <div className="client-info">
                               <strong>
-                                {
-                                  client.firstName
-                                }{' '}
-                                {
-                                  client.lastName
-                                }
+                                {client.firstName}{' '}
+                                {client.lastName}
                               </strong>
 
                               <span>
@@ -463,9 +469,7 @@ function App() {
 
                               {client.email && (
                                 <span>
-                                  {
-                                    client.email
-                                  }
+                                  {client.email}
                                 </span>
                               )}
                             </div>
@@ -631,6 +635,10 @@ function App() {
                 </section>
               )}
           </>
+        )}
+
+        {activeSection === 'devices' && (
+          <DevicesPanel />
         )}
 
         {activeSection === 'repairs' && (

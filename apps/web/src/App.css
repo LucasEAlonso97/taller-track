@@ -645,3 +645,75 @@
   color: #9ca3af;
   font-size: 13px;
 }
+
+
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.device-card {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.device-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.device-card h4 {
+  margin: 6px 0 0;
+  color: #111827;
+  font-size: 17px;
+}
+
+.device-type {
+  color: #7b1730;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.device-serial {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.device-owner {
+  margin: 14px 0 2px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.device-phone {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.device-detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.device-detail strong {
+  color: #6b7280;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.device-detail p {
+  margin: 5px 0 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.5;
+}

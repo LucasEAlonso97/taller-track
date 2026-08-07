@@ -13,3 +13,13 @@ export interface Device {
   updatedAt: string;
   client: Client;
 }
+
+export interface CreateDeviceInput {
+  type: string;
+  brand: string;
+  model: string;
+  serialNumber?: string;
+  accessories?: string;
+  initialCondition?: string;
+  clientId: string;
+}
