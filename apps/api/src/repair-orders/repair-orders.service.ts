@@ -38,33 +38,58 @@ export class RepairOrdersService {
 
     const code = this.generateCode();
 
-    return this.prisma.repairOrder.create({
-      data: {
-        code,
-        reportedIssue:
-          createRepairOrderDto.reportedIssue,
+    return this.prisma.$transaction(async (tx) => {
+      const repairOrder =
+        await tx.repairOrder.create({
+          data: {
+            code,
 
-        estimatedCompletionDate:
-          createRepairOrderDto.estimatedCompletionDate
-            ? new Date(
-                createRepairOrderDto.estimatedCompletionDate,
-              )
-            : undefined,
+            reportedIssue:
+              createRepairOrderDto.reportedIssue,
 
-        device: {
-          connect: {
-            id: createRepairOrderDto.deviceId,
+            estimatedCompletionDate:
+              createRepairOrderDto
+                .estimatedCompletionDate
+                ? new Date(
+                    createRepairOrderDto
+                      .estimatedCompletionDate,
+                  )
+                : undefined,
+
+            device: {
+              connect: {
+                id: createRepairOrderDto.deviceId,
+              },
+            },
+          },
+        });
+
+      await tx.repairStatusHistory.create({
+        data: {
+          repairOrderId: repairOrder.id,
+          status: repairOrder.status,
+        },
+      });
+
+      return tx.repairOrder.findUniqueOrThrow({
+        where: {
+          id: repairOrder.id,
+        },
+
+        include: {
+          device: {
+            include: {
+              client: true,
+            },
+          },
+
+          statusHistory: {
+            orderBy: {
+              createdAt: 'asc',
+            },
           },
         },
-      },
-
-      include: {
-        device: {
-          include: {
-            client: true,
-          },
-        },
-      },
+      });
     });
   }
 
@@ -74,6 +99,12 @@ export class RepairOrdersService {
         device: {
           include: {
             client: true,
+          },
+        },
+
+        statusHistory: {
+          orderBy: {
+            createdAt: 'asc',
           },
         },
       },
@@ -97,6 +128,12 @@ export class RepairOrdersService {
               client: true,
             },
           },
+
+          statusHistory: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
         },
       });
 
@@ -113,30 +150,70 @@ export class RepairOrdersService {
     id: string,
     updateRepairStatusDto: UpdateRepairStatusDto,
   ) {
-    await this.findOne(id);
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    const deliveredAt =
-      updateRepairStatusDto.status === 'DELIVERED'
-        ? new Date()
-        : undefined;
+    if (!repairOrder) {
+      throw new NotFoundException(
+        `No se encontró una orden con el id ${id}`,
+      );
+    }
 
-    return this.prisma.repairOrder.update({
-      where: {
-        id,
-      },
+    if (
+      repairOrder.status ===
+      updateRepairStatusDto.status
+    ) {
+      return this.findOne(id);
+    }
 
-      data: {
-        status: updateRepairStatusDto.status,
-        deliveredAt,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.repairOrder.update({
+        where: {
+          id,
+        },
 
-      include: {
-        device: {
-          include: {
-            client: true,
+        data: {
+          status: updateRepairStatusDto.status,
+
+          deliveredAt:
+            updateRepairStatusDto.status ===
+            'DELIVERED'
+              ? repairOrder.deliveredAt ??
+                new Date()
+              : null,
+        },
+      });
+
+      await tx.repairStatusHistory.create({
+        data: {
+          repairOrderId: id,
+          status: updateRepairStatusDto.status,
+        },
+      });
+
+      return tx.repairOrder.findUniqueOrThrow({
+        where: {
+          id,
+        },
+
+        include: {
+          device: {
+            include: {
+              client: true,
+            },
+          },
+
+          statusHistory: {
+            orderBy: {
+              createdAt: 'asc',
+            },
           },
         },
-      },
+      });
     });
   }
 }
