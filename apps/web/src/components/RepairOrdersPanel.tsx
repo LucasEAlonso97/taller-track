@@ -46,14 +46,20 @@ const statuses = Object.keys(
 ) as RepairStatus[];
 
 export function RepairOrdersPanel() {
-  const [orders, setOrders] = useState<RepairOrder[]>([]);
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [orders, setOrders] =
+    useState<RepairOrder[]>([]);
+
+  const [devices, setDevices] =
+    useState<Device[]>([]);
 
   const [form, setForm] =
     useState<CreateRepairOrderInput>(initialForm);
 
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>('ALL');
+
+  const [expandedOrderId, setExpandedOrderId] =
+    useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,10 +75,11 @@ export function RepairOrdersPanel() {
       try {
         setError(null);
 
-        const [ordersData, devicesData] = await Promise.all([
-          getRepairOrders(),
-          getDevices(),
-        ]);
+        const [ordersData, devicesData] =
+          await Promise.all([
+            getRepairOrders(),
+            getDevices(),
+          ]);
 
         setOrders(ordersData);
         setDevices(devicesData);
@@ -127,6 +134,7 @@ export function RepairOrdersPanel() {
       const newOrder = await createRepairOrder({
         deviceId: form.deviceId,
         reportedIssue: form.reportedIssue,
+
         estimatedCompletionDate:
           form.estimatedCompletionDate
             ? new Date(
@@ -182,6 +190,12 @@ export function RepairOrdersPanel() {
     } finally {
       setUpdatingOrderId(null);
     }
+  };
+
+  const toggleHistory = (orderId: string): void => {
+    setExpandedOrderId((current) =>
+      current === orderId ? null : orderId,
+    );
   };
 
   return (
@@ -359,112 +373,214 @@ export function RepairOrdersPanel() {
           {!loading &&
             filteredOrders.length > 0 && (
               <div className="repair-list">
-                {filteredOrders.map((order) => (
-                  <article
-                    key={order.id}
-                    className="repair-card"
-                  >
-                    <div className="repair-card-header">
-                      <div>
-                        <strong className="repair-code">
-                          {order.code}
-                        </strong>
+                {filteredOrders.map((order) => {
+                  const isHistoryOpen =
+                    expandedOrderId === order.id;
 
-                        <span
-                          className={`repair-status status-${order.status.toLowerCase()}`}
-                        >
-                          {statusLabels[order.status]}
+                  return (
+                    <article
+                      key={order.id}
+                      className="repair-card"
+                    >
+                      <div className="repair-card-header">
+                        <div>
+                          <strong className="repair-code">
+                            {order.code}
+                          </strong>
+
+                          <span
+                            className={`repair-status status-${order.status.toLowerCase()}`}
+                          >
+                            {
+                              statusLabels[
+                                order.status
+                              ]
+                            }
+                          </span>
+                        </div>
+
+                        <span className="repair-date">
+                          {new Date(
+                            order.createdAt,
+                          ).toLocaleDateString(
+                            'es-AR',
+                          )}
                         </span>
                       </div>
 
-                      <span className="repair-date">
-                        {new Date(
-                          order.createdAt,
-                        ).toLocaleDateString(
-                          'es-AR',
-                        )}
-                      </span>
-                    </div>
+                      <h4>
+                        {order.device.brand}{' '}
+                        {order.device.model}
+                      </h4>
 
-                    <h4>
-                      {order.device.brand}{' '}
-                      {order.device.model}
-                    </h4>
-
-                    <p className="repair-client">
-                      {
-                        order.device.client
-                          .firstName
-                      }{' '}
-                      {
-                        order.device.client
-                          .lastName
-                      }
-                      {' · '}
-                      {order.device.type}
-                    </p>
-
-                    <p className="repair-issue">
-                      {order.reportedIssue}
-                    </p>
-
-                    {order.estimatedCompletionDate && (
-                      <p className="repair-estimated">
-                        Entrega estimada:{' '}
-                        {new Date(
-                          order.estimatedCompletionDate,
-                        ).toLocaleString(
-                          'es-AR',
-                          {
-                            dateStyle: 'short',
-                            timeStyle: 'short',
-                          },
-                        )}
+                      <p className="repair-client">
+                        {
+                          order.device.client
+                            .firstName
+                        }{' '}
+                        {
+                          order.device.client
+                            .lastName
+                        }
+                        {' · '}
+                        {order.device.type}
                       </p>
-                    )}
 
-                    <div className="repair-actions">
-                      <label>
-                        Estado
+                      <p className="repair-issue">
+                        {order.reportedIssue}
+                      </p>
 
-                        <select
-                          value={order.status}
-                          disabled={
-                            updatingOrderId ===
-                            order.id
+                      {order.estimatedCompletionDate && (
+                        <p className="repair-estimated">
+                          Entrega estimada:{' '}
+                          {new Date(
+                            order.estimatedCompletionDate,
+                          ).toLocaleString(
+                            'es-AR',
+                            {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                            },
+                          )}
+                        </p>
+                      )}
+
+                      <div className="repair-actions">
+                        <label>
+                          Estado
+
+                          <select
+                            value={order.status}
+                            disabled={
+                              updatingOrderId ===
+                              order.id
+                            }
+                            onChange={(event) =>
+                              void handleStatusChange(
+                                order.id,
+                                event.target
+                                  .value as RepairStatus,
+                              )
+                            }
+                          >
+                            {statuses.map(
+                              (status) => (
+                                <option
+                                  key={status}
+                                  value={status}
+                                >
+                                  {
+                                    statusLabels[
+                                      status
+                                    ]
+                                  }
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+
+                        {updatingOrderId ===
+                          order.id && (
+                          <span className="saving-status">
+                            Actualizando...
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="history-section">
+                        <button
+                          type="button"
+                          className="history-toggle"
+                          onClick={() =>
+                            toggleHistory(order.id)
                           }
-                          onChange={(event) =>
-                            void handleStatusChange(
-                              order.id,
-                              event.target
-                                .value as RepairStatus,
-                            )
+                          aria-expanded={
+                            isHistoryOpen
                           }
                         >
-                          {statuses.map((status) => (
-                            <option
-                              key={status}
-                              value={status}
-                            >
-                              {
-                                statusLabels[
-                                  status
-                                ]
-                              }
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          {isHistoryOpen
+                            ? 'Ocultar historial'
+                            : 'Ver historial'}
+                        </button>
 
-                      {updatingOrderId ===
-                        order.id && (
-                        <span className="saving-status">
-                          Actualizando...
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                ))}
+                        {isHistoryOpen && (
+                          <div className="status-timeline">
+                            {order.statusHistory
+                              ?.length > 0 ? (
+                              order.statusHistory.map(
+                                (
+                                  historyItem,
+                                  index,
+                                ) => {
+                                  const isLast =
+                                    index ===
+                                    order
+                                      .statusHistory
+                                      .length -
+                                      1;
+
+                                  return (
+                                    <div
+                                      className="timeline-item"
+                                      key={
+                                        historyItem.id
+                                      }
+                                    >
+                                      <div className="timeline-marker-column">
+                                        <span
+                                          className={`timeline-dot ${
+                                            isLast
+                                              ? 'current'
+                                              : ''
+                                          }`}
+                                        />
+
+                                        {!isLast && (
+                                          <span className="timeline-line" />
+                                        )}
+                                      </div>
+
+                                      <div className="timeline-content">
+                                        <strong>
+                                          {
+                                            statusLabels[
+                                              historyItem
+                                                .status
+                                            ]
+                                          }
+                                        </strong>
+
+                                        <span>
+                                          {new Date(
+                                            historyItem.createdAt,
+                                          ).toLocaleString(
+                                            'es-AR',
+                                            {
+                                              dateStyle:
+                                                'short',
+                                              timeStyle:
+                                                'short',
+                                            },
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                },
+                              )
+                            ) : (
+                              <p className="history-empty">
+                                Esta orden no tiene
+                                historial registrado.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
         </section>
