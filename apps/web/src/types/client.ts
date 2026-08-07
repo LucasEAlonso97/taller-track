@@ -16,3 +16,11 @@ export interface CreateClientInput {
   email?: string;
   notes?: string;
 }
+
+export interface UpdateClientInput {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}
