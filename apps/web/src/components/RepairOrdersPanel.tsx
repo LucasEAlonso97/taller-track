@@ -2,19 +2,27 @@ import {
   type ChangeEvent,
   type FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
+
 import { getDevices } from '../services/devices';
+
 import {
   createRepairOrder,
   getRepairOrders,
+  updateRepairOrderStatus,
 } from '../services/repair-orders';
+
 import type { Device } from '../types/device';
+
 import type {
   CreateRepairOrderInput,
   RepairOrder,
   RepairStatus,
 } from '../types/repair-order';
+
+type StatusFilter = 'ALL' | RepairStatus;
 
 const initialForm: CreateRepairOrderInput = {
   deviceId: '',
@@ -33,6 +41,10 @@ const statusLabels: Record<RepairStatus, string> = {
   UNREPAIRED: 'Sin reparación',
 };
 
+const statuses = Object.keys(
+  statusLabels,
+) as RepairStatus[];
+
 export function RepairOrdersPanel() {
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -40,9 +52,17 @@ export function RepairOrdersPanel() {
   const [form, setForm] =
     useState<CreateRepairOrderInput>(initialForm);
 
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>('ALL');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [updatingOrderId, setUpdatingOrderId] =
+    useState<string | null>(null);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async (): Promise<void> => {
@@ -69,6 +89,16 @@ export function RepairOrdersPanel() {
 
     void loadData();
   }, []);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'ALL') {
+      return orders;
+    }
+
+    return orders.filter(
+      (order) => order.status === statusFilter,
+    );
+  }, [orders, statusFilter]);
 
   const handleChange = (
     event: ChangeEvent<
@@ -122,15 +152,53 @@ export function RepairOrdersPanel() {
     }
   };
 
+  const handleStatusChange = async (
+    orderId: string,
+    status: RepairStatus,
+  ): Promise<void> => {
+    try {
+      setUpdatingOrderId(orderId);
+      setError(null);
+
+      const updatedOrder =
+        await updateRepairOrderStatus(
+          orderId,
+          status,
+        );
+
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === updatedOrder.id
+            ? updatedOrder
+            : order,
+        ),
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el estado.',
+      );
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
   return (
     <>
       <header className="page-header">
         <div>
-          <p className="eyebrow">Reparaciones</p>
-          <h2>Órdenes de reparación</h2>
+          <p className="eyebrow">
+            Reparaciones
+          </p>
+
+          <h2>
+            Órdenes de reparación
+          </h2>
+
           <p>
-            Registrá ingresos y consultá el estado de los
-            equipos del taller.
+            Registrá ingresos y gestioná el avance
+            de cada reparación.
           </p>
         </div>
 
@@ -149,11 +217,15 @@ export function RepairOrdersPanel() {
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-header">
-            <span className="panel-label">
-              Nuevo ingreso
-            </span>
+            <div>
+              <span className="panel-label">
+                Nuevo ingreso
+              </span>
 
-            <h3>Nueva reparación</h3>
+              <h3>
+                Nueva reparación
+              </h3>
+            </div>
           </div>
 
           <form
@@ -207,7 +279,9 @@ export function RepairOrdersPanel() {
               <input
                 type="datetime-local"
                 name="estimatedCompletionDate"
-                value={form.estimatedCompletionDate ?? ''}
+                value={
+                  form.estimatedCompletionDate ?? ''
+                }
                 onChange={handleChange}
               />
             </label>
@@ -225,13 +299,49 @@ export function RepairOrdersPanel() {
         </section>
 
         <section className="panel">
-          <div className="panel-header">
-            <span className="panel-label">
-              Taller
-            </span>
+          <div className="panel-header repair-panel-header">
+            <div>
+              <span className="panel-label">
+                Taller
+              </span>
 
-            <h3>Órdenes registradas</h3>
+              <h3>
+                Órdenes registradas
+              </h3>
+            </div>
+
+            <select
+              className="status-filter"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value as StatusFilter,
+                )
+              }
+            >
+              <option value="ALL">
+                Todos los estados
+              </option>
+
+              {statuses.map((status) => (
+                <option
+                  key={status}
+                  value={status}
+                >
+                  {statusLabels[status]}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {!loading && (
+            <p className="repair-results">
+              {filteredOrders.length}{' '}
+              {filteredOrders.length === 1
+                ? 'orden'
+                : 'órdenes'}
+            </p>
+          )}
 
           {loading && (
             <p className="empty-state">
@@ -239,56 +349,124 @@ export function RepairOrdersPanel() {
             </p>
           )}
 
-          {!loading && orders.length === 0 && (
-            <p className="empty-state">
-              Todavía no hay reparaciones registradas.
-            </p>
-          )}
+          {!loading &&
+            filteredOrders.length === 0 && (
+              <p className="empty-state">
+                No hay reparaciones para este estado.
+              </p>
+            )}
 
-          {!loading && orders.length > 0 && (
-            <div className="repair-list">
-              {orders.map((order) => (
-                <article
-                  key={order.id}
-                  className="repair-card"
-                >
-                  <div className="repair-card-header">
-                    <div>
-                      <strong className="repair-code">
-                        {order.code}
-                      </strong>
+          {!loading &&
+            filteredOrders.length > 0 && (
+              <div className="repair-list">
+                {filteredOrders.map((order) => (
+                  <article
+                    key={order.id}
+                    className="repair-card"
+                  >
+                    <div className="repair-card-header">
+                      <div>
+                        <strong className="repair-code">
+                          {order.code}
+                        </strong>
 
-                      <span className="repair-status">
-                        {statusLabels[order.status]}
+                        <span
+                          className={`repair-status status-${order.status.toLowerCase()}`}
+                        >
+                          {statusLabels[order.status]}
+                        </span>
+                      </div>
+
+                      <span className="repair-date">
+                        {new Date(
+                          order.createdAt,
+                        ).toLocaleDateString(
+                          'es-AR',
+                        )}
                       </span>
                     </div>
 
-                    <span className="repair-date">
-                      {new Date(
-                        order.createdAt,
-                      ).toLocaleDateString('es-AR')}
-                    </span>
-                  </div>
+                    <h4>
+                      {order.device.brand}{' '}
+                      {order.device.model}
+                    </h4>
 
-                  <h4>
-                    {order.device.brand}{' '}
-                    {order.device.model}
-                  </h4>
+                    <p className="repair-client">
+                      {
+                        order.device.client
+                          .firstName
+                      }{' '}
+                      {
+                        order.device.client
+                          .lastName
+                      }
+                      {' · '}
+                      {order.device.type}
+                    </p>
 
-                  <p className="repair-client">
-                    {order.device.client.firstName}{' '}
-                    {order.device.client.lastName}
-                    {' · '}
-                    {order.device.type}
-                  </p>
+                    <p className="repair-issue">
+                      {order.reportedIssue}
+                    </p>
 
-                  <p className="repair-issue">
-                    {order.reportedIssue}
-                  </p>
-                </article>
-              ))}
-            </div>
-          )}
+                    {order.estimatedCompletionDate && (
+                      <p className="repair-estimated">
+                        Entrega estimada:{' '}
+                        {new Date(
+                          order.estimatedCompletionDate,
+                        ).toLocaleString(
+                          'es-AR',
+                          {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          },
+                        )}
+                      </p>
+                    )}
+
+                    <div className="repair-actions">
+                      <label>
+                        Estado
+
+                        <select
+                          value={order.status}
+                          disabled={
+                            updatingOrderId ===
+                            order.id
+                          }
+                          onChange={(event) =>
+                            void handleStatusChange(
+                              order.id,
+                              event.target
+                                .value as RepairStatus,
+                            )
+                          }
+                        >
+                          {statuses.map((status) => (
+                            <option
+                              key={status}
+                              value={status}
+                            >
+                              {
+                                statusLabels[
+                                  status
+                                ]
+                              }
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {updatingOrderId ===
+                        order.id && (
+                        <span className="saving-status">
+                          Actualizando...
+                        </span>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
         </section>
       </div>
     </>

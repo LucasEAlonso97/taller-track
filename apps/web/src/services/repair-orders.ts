@@ -1,6 +1,7 @@
 import type {
   CreateRepairOrderInput,
   RepairOrder,
+  RepairStatus,
 } from '../types/repair-order';
 
 const API_URL =
@@ -38,6 +39,38 @@ export async function createRepairOrder(
 
     throw new Error(
       message ?? 'No se pudo crear la reparación',
+    );
+  }
+
+  return response.json() as Promise<RepairOrder>;
+}
+
+export async function updateRepairOrderStatus(
+  id: string,
+  status: RepairStatus,
+): Promise<RepairOrder> {
+  const response = await fetch(
+    `${API_URL}/repair-orders/${id}/status`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  if (!response.ok) {
+    const data = (await response.json()) as {
+      message?: string | string[];
+    };
+
+    const message = Array.isArray(data.message)
+      ? data.message.join(', ')
+      : data.message;
+
+    throw new Error(
+      message ?? 'No se pudo actualizar el estado',
     );
   }
 
