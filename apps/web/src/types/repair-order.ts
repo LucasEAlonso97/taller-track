@@ -1,0 +1,31 @@
+import type { Device } from './device';
+
+export type RepairStatus =
+  | 'RECEIVED'
+  | 'IN_DIAGNOSIS'
+  | 'WAITING_APPROVAL'
+  | 'IN_REPAIR'
+  | 'READY_FOR_PICKUP'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'UNREPAIRED';
+
+export interface RepairOrder {
+  id: string;
+  code: string;
+  reportedIssue: string;
+  diagnosis: string | null;
+  status: RepairStatus;
+  estimatedCompletionDate: string | null;
+  deliveredAt: string | null;
+  deviceId: string;
+  createdAt: string;
+  updatedAt: string;
+  device: Device;
+}
+
+export interface CreateRepairOrderInput {
+  deviceId: string;
+  reportedIssue: string;
+  estimatedCompletionDate?: string;
+}
