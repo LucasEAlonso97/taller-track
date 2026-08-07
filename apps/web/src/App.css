@@ -169,7 +169,8 @@
 }
 
 .client-form input,
-.client-form textarea {
+.client-form textarea,
+.client-form select {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid #d1d5db;
@@ -184,7 +185,8 @@
 }
 
 .client-form input:focus,
-.client-form textarea:focus {
+.client-form textarea:focus,
+.client-form select:focus {
   border-color: #7b1730;
   box-shadow: 0 0 0 3px rgb(123 23 48 / 10%);
 }
@@ -371,4 +373,68 @@
   .close-button {
     width: 100%;
   }
+}
+
+.repair-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.repair-card {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.repair-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.repair-card-header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.repair-code {
+  color: #111827;
+  font-size: 14px;
+}
+
+.repair-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f4e8eb;
+  color: #7b1730;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.repair-date {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.repair-card h4 {
+  margin: 14px 0 4px;
+  color: #111827;
+  font-size: 17px;
+}
+
+.repair-client {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.repair-issue {
+  margin: 14px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
 }
