@@ -16,7 +16,7 @@
   gap: 48px;
   padding: 32px 24px;
   background: #191919;
-  color: white;
+  color: #ffffff;
 }
 
 .brand-label {
@@ -48,11 +48,19 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.nav-item:hover:not(:disabled) {
+  background: #2a2a2a;
+  color: #ffffff;
 }
 
 .nav-item.active {
   background: #7b1730;
-  color: white;
+  color: #ffffff;
 }
 
 .nav-item:disabled {
@@ -75,6 +83,7 @@
 .page-header h2 {
   margin: 4px 0 8px;
   font-size: 32px;
+  color: #111827;
 }
 
 .page-header p {
@@ -98,11 +107,12 @@
   padding: 15px 20px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  background: white;
+  background: #ffffff;
 }
 
 .client-counter strong {
   font-size: 24px;
+  color: #111827;
 }
 
 .client-counter span {
@@ -117,11 +127,12 @@
   align-items: start;
 }
 
-.panel {
+.panel,
+.detail-panel {
   padding: 28px;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
-  background: white;
+  background: #ffffff;
   box-shadow: 0 8px 30px rgb(15 23 42 / 5%);
 }
 
@@ -129,9 +140,11 @@
   margin-bottom: 24px;
 }
 
-.panel-header h3 {
+.panel-header h3,
+.detail-header h3 {
   margin: 5px 0 0;
   font-size: 21px;
+  color: #111827;
 }
 
 .client-form {
@@ -162,9 +175,12 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   outline: none;
-  background: white;
+  background: #ffffff;
   color: #111827;
   font: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .client-form input:focus,
@@ -182,10 +198,21 @@
   border: 0;
   border-radius: 8px;
   background: #7b1730;
-  color: white;
+  color: #ffffff;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.1s ease;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #681328;
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .primary-button:disabled {
@@ -243,12 +270,26 @@
   font-size: 13px;
 }
 
-.detail-button {
+.detail-button,
+.close-button {
   padding: 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 7px;
-  background: white;
+  background: #ffffff;
   color: #4b5563;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.detail-button:hover,
+.close-button:hover {
+  border-color: #7b1730;
+  background: #fff7f9;
+  color: #7b1730;
 }
 
 .error-message {
@@ -267,6 +308,18 @@
   text-align: center;
 }
 
+.detail-panel {
+  margin-top: 24px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -278,6 +331,7 @@
 
   .sidebar nav {
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .dashboard-grid {
@@ -302,5 +356,19 @@
   .client-card {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .client-info {
+    min-width: 180px;
+  }
+
+  .detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .detail-button,
+  .close-button {
+    width: 100%;
   }
 }
