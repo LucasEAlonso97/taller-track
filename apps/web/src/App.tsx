@@ -6,6 +6,7 @@ import {
 } from 'react';
 import './App.css';
 
+import { DashboardPanel } from './components/DashboardPanel';
 import { DevicesPanel } from './components/DevicesPanel';
 import { RepairOrdersPanel } from './components/RepairOrdersPanel';
 
@@ -23,6 +24,7 @@ import type {
 } from './types/client';
 
 type ActiveSection =
+  | 'dashboard'
   | 'clients'
   | 'devices'
   | 'repairs';
@@ -37,9 +39,10 @@ const initialForm: CreateClientInput = {
 
 function App() {
   const [activeSection, setActiveSection] =
-    useState<ActiveSection>('clients');
+    useState<ActiveSection>('dashboard');
 
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] =
+    useState<Client[]>([]);
 
   const [form, setForm] =
     useState<CreateClientInput>(initialForm);
@@ -50,8 +53,11 @@ function App() {
   const [editForm, setEditForm] =
     useState<UpdateClientInput>({});
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
 
   const [loadingDetail, setLoadingDetail] =
     useState(false);
@@ -86,7 +92,8 @@ function App() {
 
   const handleChange = (
     event: ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
+      HTMLInputElement |
+      HTMLTextAreaElement
     >,
   ): void => {
     const { name, value } = event.target;
@@ -119,11 +126,11 @@ function App() {
 
       setForm(initialForm);
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError('No se pudo crear el cliente.');
-      }
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo crear el cliente.',
+      );
     } finally {
       setSaving(false);
     }
@@ -160,7 +167,8 @@ function App() {
 
   const handleEditChange = (
     event: ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
+      HTMLInputElement |
+      HTMLTextAreaElement
     >,
   ): void => {
     const { name, value } = event.target;
@@ -234,10 +242,28 @@ function App() {
             TallerTrack
           </p>
 
-          <h1>Gestión del taller</h1>
+          <h1>
+            Gestión del taller
+          </h1>
         </div>
 
         <nav>
+          <button
+            className={`nav-item ${
+              activeSection === 'dashboard'
+                ? 'active'
+                : ''
+            }`}
+            type="button"
+            onClick={() =>
+              handleSectionChange(
+                'dashboard',
+              )
+            }
+          >
+            Inicio
+          </button>
+
           <button
             className={`nav-item ${
               activeSection === 'clients'
@@ -246,7 +272,9 @@ function App() {
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('clients')
+              handleSectionChange(
+                'clients',
+              )
             }
           >
             Clientes
@@ -260,7 +288,9 @@ function App() {
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('devices')
+              handleSectionChange(
+                'devices',
+              )
             }
           >
             Equipos
@@ -274,7 +304,9 @@ function App() {
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('repairs')
+              handleSectionChange(
+                'repairs',
+              )
             }
           >
             Reparaciones
@@ -283,7 +315,13 @@ function App() {
       </aside>
 
       <main className="content">
-        {activeSection === 'clients' && (
+        {activeSection ===
+          'dashboard' && (
+          <DashboardPanel />
+        )}
+
+        {activeSection ===
+          'clients' && (
           <>
             <header className="page-header">
               <div>
@@ -296,8 +334,9 @@ function App() {
                 </h2>
 
                 <p>
-                  Registrá, consultá y editá
-                  los clientes del taller.
+                  Registrá, consultá y
+                  editá los clientes del
+                  taller.
                 </p>
               </div>
 
@@ -334,7 +373,9 @@ function App() {
 
                 <form
                   className="client-form"
-                  onSubmit={handleSubmit}
+                  onSubmit={
+                    handleSubmit
+                  }
                 >
                   <div className="form-row">
                     <label>
@@ -343,8 +384,12 @@ function App() {
                       <input
                         type="text"
                         name="firstName"
-                        value={form.firstName}
-                        onChange={handleChange}
+                        value={
+                          form.firstName
+                        }
+                        onChange={
+                          handleChange
+                        }
                         required
                         minLength={2}
                       />
@@ -356,8 +401,12 @@ function App() {
                       <input
                         type="text"
                         name="lastName"
-                        value={form.lastName}
-                        onChange={handleChange}
+                        value={
+                          form.lastName
+                        }
+                        onChange={
+                          handleChange
+                        }
                         required
                         minLength={2}
                       />
@@ -370,8 +419,12 @@ function App() {
                     <input
                       type="text"
                       name="phone"
-                      value={form.phone}
-                      onChange={handleChange}
+                      value={
+                        form.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
                       required
                       minLength={6}
                     />
@@ -383,8 +436,12 @@ function App() {
                     <input
                       type="email"
                       name="email"
-                      value={form.email}
-                      onChange={handleChange}
+                      value={
+                        form.email
+                      }
+                      onChange={
+                        handleChange
+                      }
                     />
                   </label>
 
@@ -393,8 +450,12 @@ function App() {
 
                     <textarea
                       name="notes"
-                      value={form.notes}
-                      onChange={handleChange}
+                      value={
+                        form.notes
+                      }
+                      onChange={
+                        handleChange
+                      }
                       rows={4}
                     />
                   </label>
@@ -402,7 +463,9 @@ function App() {
                   <button
                     className="primary-button"
                     type="submit"
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                   >
                     {saving
                       ? 'Guardando...'
@@ -431,45 +494,62 @@ function App() {
                 )}
 
                 {!loading &&
-                  clients.length === 0 && (
+                  clients.length ===
+                    0 && (
                     <p className="empty-state">
-                      Todavía no hay clientes
+                      Todavía no hay
+                      clientes
                       registrados.
                     </p>
                   )}
 
                 {!loading &&
-                  clients.length > 0 && (
+                  clients.length >
+                    0 && (
                     <div className="client-list">
                       {clients.map(
                         (client) => (
                           <article
                             className="client-card"
-                            key={client.id}
+                            key={
+                              client.id
+                            }
                           >
                             <div className="client-avatar">
                               {client.firstName
-                                .charAt(0)
+                                .charAt(
+                                  0,
+                                )
                                 .toUpperCase()}
 
                               {client.lastName
-                                .charAt(0)
+                                .charAt(
+                                  0,
+                                )
                                 .toUpperCase()}
                             </div>
 
                             <div className="client-info">
                               <strong>
-                                {client.firstName}{' '}
-                                {client.lastName}
+                                {
+                                  client.firstName
+                                }{' '}
+                                {
+                                  client.lastName
+                                }
                               </strong>
 
                               <span>
-                                {client.phone}
+                                {
+                                  client.phone
+                                }
                               </span>
 
                               {client.email && (
                                 <span>
-                                  {client.email}
+                                  {
+                                    client.email
+                                  }
                                 </span>
                               )}
                             </div>
@@ -582,7 +662,8 @@ function App() {
                         type="text"
                         name="phone"
                         value={
-                          editForm.phone ?? ''
+                          editForm.phone ??
+                          ''
                         }
                         onChange={
                           handleEditChange
@@ -599,7 +680,8 @@ function App() {
                         type="email"
                         name="email"
                         value={
-                          editForm.email ?? ''
+                          editForm.email ??
+                          ''
                         }
                         onChange={
                           handleEditChange
@@ -613,7 +695,8 @@ function App() {
                       <textarea
                         name="notes"
                         value={
-                          editForm.notes ?? ''
+                          editForm.notes ??
+                          ''
                         }
                         onChange={
                           handleEditChange
@@ -625,7 +708,9 @@ function App() {
                     <button
                       className="primary-button"
                       type="submit"
-                      disabled={updating}
+                      disabled={
+                        updating
+                      }
                     >
                       {updating
                         ? 'Guardando cambios...'
@@ -637,11 +722,13 @@ function App() {
           </>
         )}
 
-        {activeSection === 'devices' && (
+        {activeSection ===
+          'devices' && (
           <DevicesPanel />
         )}
 
-        {activeSection === 'repairs' && (
+        {activeSection ===
+          'repairs' && (
           <RepairOrdersPanel />
         )}
       </main>
