@@ -10,11 +10,27 @@ export type RepairStatus =
   | 'CANCELLED'
   | 'UNREPAIRED';
 
+export type QuoteStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED';
+
 export interface RepairStatusHistory {
   id: string;
   status: RepairStatus;
   repairOrderId: string;
   createdAt: string;
+}
+
+export interface RepairQuote {
+  id: string;
+  amount: number;
+  description: string | null;
+  status: QuoteStatus;
+  respondedAt: string | null;
+  repairOrderId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RepairOrder {
@@ -30,8 +46,8 @@ export interface RepairOrder {
   updatedAt: string;
 
   device: Device;
-
   statusHistory: RepairStatusHistory[];
+  quote: RepairQuote | null;
 }
 
 export interface CreateRepairOrderInput {

@@ -1,8 +1,11 @@
 import type {
   CreateRepairOrderInput,
+  QuoteStatus,
   RepairOrder,
   RepairStatus,
 } from '../types/repair-order';
+
+
 
 const API_URL =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
@@ -108,6 +111,76 @@ export async function updateRepairDiagnosis(
 
     throw new Error(
       message ?? 'No se pudo guardar el diagnóstico',
+    );
+  }
+
+  return response.json() as Promise<RepairOrder>;
+}
+
+export interface UpdateRepairQuoteInput {
+  amount: number;
+  description?: string;
+}
+
+export async function updateRepairQuote(
+  id: string,
+  input: UpdateRepairQuoteInput,
+): Promise<RepairOrder> {
+  const response = await fetch(
+    `${API_URL}/repair-orders/${id}/quote`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    const data = (await response.json()) as {
+      message?: string | string[];
+    };
+
+    const message = Array.isArray(data.message)
+      ? data.message.join(', ')
+      : data.message;
+
+    throw new Error(
+      message ?? 'No se pudo guardar el presupuesto',
+    );
+  }
+
+  return response.json() as Promise<RepairOrder>;
+}
+
+export async function updateRepairQuoteStatus(
+  id: string,
+  status: QuoteStatus,
+): Promise<RepairOrder> {
+  const response = await fetch(
+    `${API_URL}/repair-orders/${id}/quote/status`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  if (!response.ok) {
+    const data = (await response.json()) as {
+      message?: string | string[];
+    };
+
+    const message = Array.isArray(data.message)
+      ? data.message.join(', ')
+      : data.message;
+
+    throw new Error(
+      message ??
+        'No se pudo actualizar el presupuesto',
     );
   }
 

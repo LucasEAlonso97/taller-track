@@ -19,6 +19,12 @@ enum RepairStatus {
   UNREPAIRED
 }
 
+enum QuoteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Client {
   id        String   @id @default(uuid()) @db.Uuid
   firstName String
@@ -64,6 +70,7 @@ model RepairOrder {
 
   device        Device                @relation(fields: [deviceId], references: [id], onDelete: Restrict)
   statusHistory RepairStatusHistory[]
+  quote         RepairQuote?
 
   @@index([deviceId])
   @@index([status])
@@ -79,4 +86,17 @@ model RepairStatusHistory {
 
   @@index([repairOrderId])
   @@index([createdAt])
+}
+
+model RepairQuote {
+  id            String      @id @default(uuid()) @db.Uuid
+  amount        Int
+  description   String?
+  status        QuoteStatus @default(PENDING)
+  respondedAt   DateTime?
+  repairOrderId String      @unique @db.Uuid
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
 }

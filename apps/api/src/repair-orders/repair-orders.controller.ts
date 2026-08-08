@@ -9,8 +9,11 @@ import {
 } from '@nestjs/common';
 
 import { CreateRepairOrderDto } from './dto/create-repair-order.dto';
+import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
+import { UpdateRepairQuoteDto } from './dto/update-repair-quote.dto';
 import { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
+
 import { RepairOrdersService } from './repair-orders.service';
 
 @Controller('repair-orders')
@@ -68,6 +71,34 @@ export class RepairOrdersController {
     return this.repairOrdersService.updateDiagnosis(
       id,
       updateRepairDiagnosisDto,
+    );
+  }
+
+  @Patch(':id/quote')
+  updateQuote(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+
+    @Body()
+    updateRepairQuoteDto: UpdateRepairQuoteDto,
+  ) {
+    return this.repairOrdersService.updateQuote(
+      id,
+      updateRepairQuoteDto,
+    );
+  }
+
+  @Patch(':id/quote/status')
+  updateQuoteStatus(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+
+    @Body()
+    updateQuoteStatusDto: UpdateQuoteStatusDto,
+  ) {
+    return this.repairOrdersService.updateQuoteStatus(
+      id,
+      updateQuoteStatusDto,
     );
   }
 }

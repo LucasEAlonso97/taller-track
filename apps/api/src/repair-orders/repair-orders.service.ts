@@ -4,10 +4,17 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
+import {
+  QuoteStatus,
+  RepairStatus,
+} from '../generated/prisma/enums';
+
 import { PrismaService } from '../database/prisma.service';
 
 import type { CreateRepairOrderDto } from './dto/create-repair-order.dto';
+import type { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import type { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
+import type { UpdateRepairQuoteDto } from './dto/update-repair-quote.dto';
 import type { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
 
 @Injectable()
@@ -23,6 +30,22 @@ export class RepairOrdersService {
 
     return `TT-${year}-${suffix}`;
   }
+
+  private readonly fullOrderInclude = {
+    device: {
+      include: {
+        client: true,
+      },
+    },
+
+    statusHistory: {
+      orderBy: {
+        createdAt: 'asc' as const,
+      },
+    },
+
+    quote: true,
+  };
 
   async create(
     createRepairOrderDto: CreateRepairOrderDto,
@@ -79,38 +102,14 @@ export class RepairOrdersService {
           id: repairOrder.id,
         },
 
-        include: {
-          device: {
-            include: {
-              client: true,
-            },
-          },
-
-          statusHistory: {
-            orderBy: {
-              createdAt: 'asc',
-            },
-          },
-        },
+        include: this.fullOrderInclude,
       });
     });
   }
 
   findAll() {
     return this.prisma.repairOrder.findMany({
-      include: {
-        device: {
-          include: {
-            client: true,
-          },
-        },
-
-        statusHistory: {
-          orderBy: {
-            createdAt: 'asc',
-          },
-        },
-      },
+      include: this.fullOrderInclude,
 
       orderBy: {
         createdAt: 'desc',
@@ -125,19 +124,7 @@ export class RepairOrdersService {
           id,
         },
 
-        include: {
-          device: {
-            include: {
-              client: true,
-            },
-          },
-
-          statusHistory: {
-            orderBy: {
-              createdAt: 'asc',
-            },
-          },
-        },
+        include: this.fullOrderInclude,
       });
 
     if (!repairOrder) {
@@ -184,7 +171,7 @@ export class RepairOrdersService {
 
           deliveredAt:
             updateRepairStatusDto.status ===
-            'DELIVERED'
+            RepairStatus.DELIVERED
               ? repairOrder.deliveredAt ??
                 new Date()
               : null,
@@ -203,19 +190,7 @@ export class RepairOrdersService {
           id,
         },
 
-        include: {
-          device: {
-            include: {
-              client: true,
-            },
-          },
-
-          statusHistory: {
-            orderBy: {
-              createdAt: 'asc',
-            },
-          },
-        },
+        include: this.fullOrderInclude,
       });
     });
   }
@@ -256,19 +231,164 @@ export class RepairOrdersService {
             : repairOrder.estimatedCompletionDate,
       },
 
-      include: {
-        device: {
-          include: {
-            client: true,
-          },
+      include: this.fullOrderInclude,
+    });
+  }
+
+  async updateQuote(
+    id: string,
+    updateRepairQuoteDto: UpdateRepairQuoteDto,
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id,
         },
 
-        statusHistory: {
-          orderBy: {
-            createdAt: 'asc',
-          },
+        include: {
+          quote: true,
         },
-      },
+      });
+
+    if (!repairOrder) {
+      throw new NotFoundException(
+        `No se encontró una orden con el id ${id}`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.repairQuote.upsert({
+        where: {
+          repairOrderId: id,
+        },
+
+        create: {
+          repairOrderId: id,
+          amount: updateRepairQuoteDto.amount,
+          description:
+            updateRepairQuoteDto.description,
+          status: QuoteStatus.PENDING,
+        },
+
+        update: {
+          amount: updateRepairQuoteDto.amount,
+          description:
+            updateRepairQuoteDto.description,
+          status: QuoteStatus.PENDING,
+          respondedAt: null,
+        },
+      });
+
+      if (
+        repairOrder.status !==
+        RepairStatus.WAITING_APPROVAL
+      ) {
+        await tx.repairOrder.update({
+          where: {
+            id,
+          },
+
+          data: {
+            status:
+              RepairStatus.WAITING_APPROVAL,
+          },
+        });
+
+        await tx.repairStatusHistory.create({
+          data: {
+            repairOrderId: id,
+            status:
+              RepairStatus.WAITING_APPROVAL,
+          },
+        });
+      }
+
+      return tx.repairOrder.findUniqueOrThrow({
+        where: {
+          id,
+        },
+
+        include: this.fullOrderInclude,
+      });
+    });
+  }
+
+  async updateQuoteStatus(
+    id: string,
+    updateQuoteStatusDto: UpdateQuoteStatusDto,
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id,
+        },
+
+        include: {
+          quote: true,
+        },
+      });
+
+    if (!repairOrder) {
+      throw new NotFoundException(
+        `No se encontró una orden con el id ${id}`,
+      );
+    }
+
+    if (!repairOrder.quote) {
+      throw new NotFoundException(
+        'La orden todavía no tiene un presupuesto',
+      );
+    }
+
+    const nextRepairStatus =
+      updateQuoteStatusDto.status ===
+      QuoteStatus.APPROVED
+        ? RepairStatus.IN_REPAIR
+        : RepairStatus.UNREPAIRED;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.repairQuote.update({
+        where: {
+          repairOrderId: id,
+        },
+
+        data: {
+          status:
+            updateQuoteStatusDto.status,
+
+          respondedAt: new Date(),
+        },
+      });
+
+      if (
+        repairOrder.status !==
+        nextRepairStatus
+      ) {
+        await tx.repairOrder.update({
+          where: {
+            id,
+          },
+
+          data: {
+            status: nextRepairStatus,
+          },
+        });
+
+        await tx.repairStatusHistory.create({
+          data: {
+            repairOrderId: id,
+            status: nextRepairStatus,
+          },
+        });
+      }
+
+      return tx.repairOrder.findUniqueOrThrow({
+        where: {
+          id,
+        },
+
+        include: this.fullOrderInclude,
+      });
     });
   }
 }
