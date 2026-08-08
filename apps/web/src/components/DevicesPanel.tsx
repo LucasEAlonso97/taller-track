@@ -2,8 +2,11 @@ import {
   type ChangeEvent,
   type FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
+
+import { SearchInput } from './SearchInput';
 
 import {
   createDevice,
@@ -39,6 +42,8 @@ export function DevicesPanel() {
   const [form, setForm] =
     useState<CreateDeviceInput>(initialForm);
 
+  const [search, setSearch] = useState('');
+
   const [loading, setLoading] =
     useState(true);
 
@@ -48,16 +53,52 @@ export function DevicesPanel() {
   const [error, setError] =
     useState<string | null>(null);
 
+  const filteredDevices = useMemo(() => {
+    const query = search
+      .trim()
+      .toLowerCase();
+
+    if (!query) {
+      return devices;
+    }
+
+    return devices.filter((device) => {
+      const owner =
+        `${device.client.firstName} ${device.client.lastName}`.toLowerCase();
+
+      const serialMatches =
+        device.serialNumber
+          ?.toLowerCase()
+          .includes(query) ?? false;
+
+      return (
+        owner.includes(query) ||
+        device.type
+          .toLowerCase()
+          .includes(query) ||
+        device.brand
+          .toLowerCase()
+          .includes(query) ||
+        device.model
+          .toLowerCase()
+          .includes(query) ||
+        serialMatches
+      );
+    });
+  }, [devices, search]);
+
   useEffect(() => {
     const loadData = async (): Promise<void> => {
       try {
         setError(null);
 
-        const [devicesData, clientsData] =
-          await Promise.all([
-            getDevices(),
-            getClients(),
-          ]);
+        const [
+          devicesData,
+          clientsData,
+        ] = await Promise.all([
+          getDevices(),
+          getClients(),
+        ]);
 
         setDevices(devicesData);
         setClients(clientsData);
@@ -99,21 +140,25 @@ export function DevicesPanel() {
       setSaving(true);
       setError(null);
 
-      const newDevice = await createDevice({
-        type: form.type,
-        brand: form.brand,
-        model: form.model,
-        clientId: form.clientId,
+      const newDevice =
+        await createDevice({
+          type: form.type,
+          brand: form.brand,
+          model: form.model,
+          clientId: form.clientId,
 
-        serialNumber:
-          form.serialNumber || undefined,
+          serialNumber:
+            form.serialNumber ||
+            undefined,
 
-        accessories:
-          form.accessories || undefined,
+          accessories:
+            form.accessories ||
+            undefined,
 
-        initialCondition:
-          form.initialCondition || undefined,
-      });
+          initialCondition:
+            form.initialCondition ||
+            undefined,
+        });
 
       setDevices((current) => [
         newDevice,
@@ -145,14 +190,20 @@ export function DevicesPanel() {
           </h2>
 
           <p>
-            Registrá los dispositivos que ingresan
-            al taller y asocialos con sus propietarios.
+            Registrá los dispositivos que
+            ingresan al taller y asocialos
+            con sus propietarios.
           </p>
         </div>
 
         <div className="client-counter">
-          <strong>{devices.length}</strong>
-          <span>equipos</span>
+          <strong>
+            {devices.length}
+          </strong>
+
+          <span>
+            equipos
+          </span>
         </div>
       </header>
 
@@ -176,10 +227,11 @@ export function DevicesPanel() {
             </div>
           </div>
 
-          {clients.length === 0 && !loading ? (
+          {clients.length === 0 &&
+          !loading ? (
             <p className="empty-state">
-              Primero necesitás registrar al menos
-              un cliente.
+              Primero necesitás registrar
+              al menos un cliente.
             </p>
           ) : (
             <form
@@ -199,17 +251,19 @@ export function DevicesPanel() {
                     Seleccionar cliente
                   </option>
 
-                  {clients.map((client) => (
-                    <option
-                      key={client.id}
-                      value={client.id}
-                    >
-                      {client.firstName}{' '}
-                      {client.lastName}
-                      {' — '}
-                      {client.phone}
-                    </option>
-                  ))}
+                  {clients.map(
+                    (client) => (
+                      <option
+                        key={client.id}
+                        value={client.id}
+                      >
+                        {client.firstName}{' '}
+                        {client.lastName}
+                        {' — '}
+                        {client.phone}
+                      </option>
+                    ),
+                  )}
                 </select>
               </label>
 
@@ -262,7 +316,9 @@ export function DevicesPanel() {
                 <input
                   type="text"
                   name="serialNumber"
-                  value={form.serialNumber ?? ''}
+                  value={
+                    form.serialNumber ?? ''
+                  }
                   onChange={handleChange}
                   placeholder="Opcional"
                 />
@@ -273,7 +329,9 @@ export function DevicesPanel() {
 
                 <textarea
                   name="accessories"
-                  value={form.accessories ?? ''}
+                  value={
+                    form.accessories ?? ''
+                  }
                   onChange={handleChange}
                   rows={3}
                   placeholder="Ej: cargador original, funda..."
@@ -286,7 +344,8 @@ export function DevicesPanel() {
                 <textarea
                   name="initialCondition"
                   value={
-                    form.initialCondition ?? ''
+                    form.initialCondition ??
+                    ''
                   }
                   onChange={handleChange}
                   rows={4}
@@ -320,6 +379,15 @@ export function DevicesPanel() {
             </div>
           </div>
 
+          {!loading &&
+            devices.length > 0 && (
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar por propietario, marca, modelo o serie..."
+              />
+            )}
+
           {loading && (
             <p className="empty-state">
               Cargando equipos...
@@ -329,73 +397,101 @@ export function DevicesPanel() {
           {!loading &&
             devices.length === 0 && (
               <p className="empty-state">
-                Todavía no hay equipos registrados.
+                Todavía no hay equipos
+                registrados.
               </p>
             )}
 
           {!loading &&
-            devices.length > 0 && (
+            devices.length > 0 &&
+            filteredDevices.length ===
+              0 && (
+              <p className="empty-state">
+                No encontramos equipos
+                para "{search}".
+              </p>
+            )}
+
+          {!loading &&
+            filteredDevices.length >
+              0 && (
               <div className="device-list">
-                {devices.map((device) => (
-                  <article
-                    className="device-card"
-                    key={device.id}
-                  >
-                    <div className="device-card-top">
-                      <div>
-                        <span className="device-type">
-                          {device.type}
-                        </span>
+                {filteredDevices.map(
+                  (device) => (
+                    <article
+                      className="device-card"
+                      key={device.id}
+                    >
+                      <div className="device-card-top">
+                        <div>
+                          <span className="device-type">
+                            {device.type}
+                          </span>
 
-                        <h4>
-                          {device.brand}{' '}
-                          {device.model}
-                        </h4>
+                          <h4>
+                            {device.brand}{' '}
+                            {device.model}
+                          </h4>
+                        </div>
+
+                        {device.serialNumber && (
+                          <span className="device-serial">
+                            SN:{' '}
+                            {
+                              device.serialNumber
+                            }
+                          </span>
+                        )}
                       </div>
 
-                      {device.serialNumber && (
-                        <span className="device-serial">
-                          SN: {device.serialNumber}
-                        </span>
+                      <p className="device-owner">
+                        {
+                          device.client
+                            .firstName
+                        }{' '}
+                        {
+                          device.client
+                            .lastName
+                        }
+                      </p>
+
+                      <span className="device-phone">
+                        {
+                          device.client
+                            .phone
+                        }
+                      </span>
+
+                      {device.accessories && (
+                        <div className="device-detail">
+                          <strong>
+                            Accesorios
+                          </strong>
+
+                          <p>
+                            {
+                              device.accessories
+                            }
+                          </p>
+                        </div>
                       )}
-                    </div>
 
-                    <p className="device-owner">
-                      {device.client.firstName}{' '}
-                      {device.client.lastName}
-                    </p>
+                      {device.initialCondition && (
+                        <div className="device-detail">
+                          <strong>
+                            Estado al ingresar
+                          </strong>
 
-                    <span className="device-phone">
-                      {device.client.phone}
-                    </span>
-
-                    {device.accessories && (
-                      <div className="device-detail">
-                        <strong>
-                          Accesorios
-                        </strong>
-
-                        <p>
-                          {device.accessories}
-                        </p>
-                      </div>
-                    )}
-
-                    {device.initialCondition && (
-                      <div className="device-detail">
-                        <strong>
-                          Estado al ingresar
-                        </strong>
-
-                        <p>
-                          {
-                            device.initialCondition
-                          }
-                        </p>
-                      </div>
-                    )}
-                  </article>
-                ))}
+                          <p>
+                            {
+                              device.initialCondition
+                            }
+                          </p>
+                        </div>
+                      )}
+                    </article>
+                  ),
+                )}
               </div>
             )}
         </section>
