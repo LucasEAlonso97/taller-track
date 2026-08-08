@@ -13,12 +13,15 @@ import {
   getRepairOrders,
   updateRepairDiagnosis,
   updateRepairOrderStatus,
+  updateRepairQuote,
+  updateRepairQuoteStatus,
 } from '../services/repair-orders';
 
 import type { Device } from '../types/device';
 
 import type {
   CreateRepairOrderInput,
+  QuoteStatus,
   RepairOrder,
   RepairStatus,
 } from '../types/repair-order';
@@ -40,6 +43,12 @@ const statusLabels: Record<RepairStatus, string> = {
   DELIVERED: 'Entregado',
   CANCELLED: 'Cancelado',
   UNREPAIRED: 'Sin reparación',
+};
+
+const quoteStatusLabels: Record<QuoteStatus, string> = {
+  PENDING: 'Esperando respuesta',
+  APPROVED: 'Aprobado',
+  REJECTED: 'Rechazado',
 };
 
 const statuses = Object.keys(
@@ -69,6 +78,23 @@ export function RepairOrdersPanel() {
     useState('');
 
   const [savingDiagnosisId, setSavingDiagnosisId] =
+    useState<string | null>(null);
+
+  const [editingQuoteId, setEditingQuoteId] =
+    useState<string | null>(null);
+
+  const [quoteAmountDraft, setQuoteAmountDraft] =
+    useState('');
+
+  const [
+    quoteDescriptionDraft,
+    setQuoteDescriptionDraft,
+  ] = useState('');
+
+  const [savingQuoteId, setSavingQuoteId] =
+    useState<string | null>(null);
+
+  const [respondingQuoteId, setRespondingQuoteId] =
     useState<string | null>(null);
 
   const [loading, setLoading] =
@@ -225,11 +251,10 @@ export function RepairOrdersPanel() {
     );
   };
 
-  const handleCancelDiagnosis =
-    (): void => {
-      setEditingDiagnosisId(null);
-      setDiagnosisDraft('');
-    };
+  const handleCancelDiagnosis = (): void => {
+    setEditingDiagnosisId(null);
+    setDiagnosisDraft('');
+  };
 
   const handleSaveDiagnosis = async (
     orderId: string,
@@ -265,6 +290,126 @@ export function RepairOrdersPanel() {
     } finally {
       setSavingDiagnosisId(null);
     }
+  };
+
+  const handleEditQuote = (
+    order: RepairOrder,
+  ): void => {
+    setEditingQuoteId(order.id);
+
+    setQuoteAmountDraft(
+      order.quote
+        ? String(order.quote.amount)
+        : '',
+    );
+
+    setQuoteDescriptionDraft(
+      order.quote?.description ?? '',
+    );
+  };
+
+  const handleCancelQuote = (): void => {
+    setEditingQuoteId(null);
+    setQuoteAmountDraft('');
+    setQuoteDescriptionDraft('');
+  };
+
+  const handleSaveQuote = async (
+    orderId: string,
+  ): Promise<void> => {
+    const amount = Number(quoteAmountDraft);
+
+    if (
+      !Number.isInteger(amount) ||
+      amount <= 0
+    ) {
+      setError(
+        'El presupuesto debe ser un monto entero mayor a 0.',
+      );
+      return;
+    }
+
+    try {
+      setSavingQuoteId(orderId);
+      setError(null);
+
+      const updatedOrder =
+        await updateRepairQuote(
+          orderId,
+          {
+            amount,
+
+            description:
+              quoteDescriptionDraft.trim() ||
+              undefined,
+          },
+        );
+
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === updatedOrder.id
+            ? updatedOrder
+            : order,
+        ),
+      );
+
+      setEditingQuoteId(null);
+      setQuoteAmountDraft('');
+      setQuoteDescriptionDraft('');
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el presupuesto.',
+      );
+    } finally {
+      setSavingQuoteId(null);
+    }
+  };
+
+  const handleQuoteStatus = async (
+    orderId: string,
+    status: QuoteStatus,
+  ): Promise<void> => {
+    try {
+      setRespondingQuoteId(orderId);
+      setError(null);
+
+      const updatedOrder =
+        await updateRepairQuoteStatus(
+          orderId,
+          status,
+        );
+
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === updatedOrder.id
+            ? updatedOrder
+            : order,
+        ),
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo responder el presupuesto.',
+      );
+    } finally {
+      setRespondingQuoteId(null);
+    }
+  };
+
+  const formatCurrency = (
+    amount: number,
+  ): string => {
+    return new Intl.NumberFormat(
+      'es-AR',
+      {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0,
+      },
+    ).format(amount);
   };
 
   return (
@@ -437,8 +582,7 @@ export function RepairOrdersPanel() {
           {!loading && (
             <p className="repair-results">
               {filteredOrders.length}{' '}
-              {filteredOrders.length ===
-              1
+              {filteredOrders.length === 1
                 ? 'orden'
                 : 'órdenes'}
             </p>
@@ -451,8 +595,7 @@ export function RepairOrdersPanel() {
           )}
 
           {!loading &&
-            filteredOrders.length ===
-              0 && (
+            filteredOrders.length === 0 && (
               <p className="empty-state">
                 No hay reparaciones
                 para este estado.
@@ -460,8 +603,7 @@ export function RepairOrdersPanel() {
             )}
 
           {!loading &&
-            filteredOrders.length >
-              0 && (
+            filteredOrders.length > 0 && (
               <div className="repair-list">
                 {filteredOrders.map(
                   (order) => {
@@ -477,6 +619,18 @@ export function RepairOrdersPanel() {
                       savingDiagnosisId ===
                       order.id;
 
+                    const isEditingQuote =
+                      editingQuoteId ===
+                      order.id;
+
+                    const isSavingQuote =
+                      savingQuoteId ===
+                      order.id;
+
+                    const isRespondingQuote =
+                      respondingQuoteId ===
+                      order.id;
+
                     return (
                       <article
                         key={order.id}
@@ -485,9 +639,7 @@ export function RepairOrdersPanel() {
                         <div className="repair-card-header">
                           <div>
                             <strong className="repair-code">
-                              {
-                                order.code
-                              }
+                              {order.code}
                             </strong>
 
                             <span
@@ -495,8 +647,7 @@ export function RepairOrdersPanel() {
                             >
                               {
                                 statusLabels[
-                                  order
-                                    .status
+                                  order.status
                                 ]
                               }
                             </span>
@@ -580,8 +731,7 @@ export function RepairOrdersPanel() {
                                   event,
                                 ) =>
                                   setDiagnosisDraft(
-                                    event
-                                      .target
+                                    event.target
                                       .value,
                                   )
                                 }
@@ -611,8 +761,7 @@ export function RepairOrdersPanel() {
                                   disabled={
                                     diagnosisDraft
                                       .trim()
-                                      .length <
-                                      3 ||
+                                      .length < 3 ||
                                     isSavingDiagnosis
                                   }
                                   onClick={() =>
@@ -641,10 +790,213 @@ export function RepairOrdersPanel() {
                           )}
                         </div>
 
+                        <div className="quote-section">
+                          <div className="quote-header">
+                            <div>
+                              <span className="quote-title">
+                                Presupuesto
+                              </span>
+
+                              {order.quote && (
+                                <span
+                                  className={`quote-status quote-status-${order.quote.status.toLowerCase()}`}
+                                >
+                                  {
+                                    quoteStatusLabels[
+                                      order.quote
+                                        .status
+                                    ]
+                                  }
+                                </span>
+                              )}
+                            </div>
+
+                            {!isEditingQuote && (
+                              <button
+                                type="button"
+                                className="diagnosis-edit-button"
+                                onClick={() =>
+                                  handleEditQuote(
+                                    order,
+                                  )
+                                }
+                              >
+                                {order.quote
+                                  ? 'Editar'
+                                  : 'Agregar presupuesto'}
+                              </button>
+                            )}
+                          </div>
+
+                          {isEditingQuote ? (
+                            <div className="quote-editor">
+                              <label>
+                                Monto
+
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={
+                                    quoteAmountDraft
+                                  }
+                                  onChange={(
+                                    event,
+                                  ) =>
+                                    setQuoteAmountDraft(
+                                      event.target
+                                        .value,
+                                    )
+                                  }
+                                  placeholder="85000"
+                                />
+                              </label>
+
+                              <label>
+                                Detalle
+
+                                <textarea
+                                  value={
+                                    quoteDescriptionDraft
+                                  }
+                                  onChange={(
+                                    event,
+                                  ) =>
+                                    setQuoteDescriptionDraft(
+                                      event.target
+                                        .value,
+                                    )
+                                  }
+                                  rows={3}
+                                  maxLength={1000}
+                                  placeholder="Ej: reemplazo del conector de carga + mano de obra"
+                                />
+                              </label>
+
+                              <div className="diagnosis-actions">
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  onClick={
+                                    handleCancelQuote
+                                  }
+                                  disabled={
+                                    isSavingQuote
+                                  }
+                                >
+                                  Cancelar
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="primary-button"
+                                  disabled={
+                                    !quoteAmountDraft ||
+                                    Number(
+                                      quoteAmountDraft,
+                                    ) <= 0 ||
+                                    isSavingQuote
+                                  }
+                                  onClick={() =>
+                                    void handleSaveQuote(
+                                      order.id,
+                                    )
+                                  }
+                                >
+                                  {isSavingQuote
+                                    ? 'Guardando...'
+                                    : 'Guardar presupuesto'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : order.quote ? (
+                            <div className="quote-content">
+                              <strong className="quote-amount">
+                                {formatCurrency(
+                                  order.quote
+                                    .amount,
+                                )}
+                              </strong>
+
+                              {order.quote
+                                .description && (
+                                <p>
+                                  {
+                                    order.quote
+                                      .description
+                                  }
+                                </p>
+                              )}
+
+                              {order.quote.status ===
+                                'PENDING' && (
+                                <div className="quote-response-actions">
+                                  <button
+                                    type="button"
+                                    className="quote-reject-button"
+                                    disabled={
+                                      isRespondingQuote
+                                    }
+                                    onClick={() =>
+                                      void handleQuoteStatus(
+                                        order.id,
+                                        'REJECTED',
+                                      )
+                                    }
+                                  >
+                                    Rechazar
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="quote-approve-button"
+                                    disabled={
+                                      isRespondingQuote
+                                    }
+                                    onClick={() =>
+                                      void handleQuoteStatus(
+                                        order.id,
+                                        'APPROVED',
+                                      )
+                                    }
+                                  >
+                                    {isRespondingQuote
+                                      ? 'Procesando...'
+                                      : 'Aprobar'}
+                                  </button>
+                                </div>
+                              )}
+
+                              {order.quote
+                                .respondedAt && (
+                                <span className="quote-response-date">
+                                  Respondido:{' '}
+                                  {new Date(
+                                    order.quote
+                                      .respondedAt,
+                                  ).toLocaleString(
+                                    'es-AR',
+                                    {
+                                      dateStyle:
+                                        'short',
+                                      timeStyle:
+                                        'short',
+                                    },
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="diagnosis-empty">
+                              Todavía no se cargó
+                              un presupuesto.
+                            </p>
+                          )}
+                        </div>
+
                         {order.estimatedCompletionDate && (
                           <p className="repair-estimated">
-                            Entrega
-                            estimada:{' '}
+                            Entrega estimada:{' '}
                             {new Date(
                               order.estimatedCompletionDate,
                             ).toLocaleString(
@@ -676,8 +1028,7 @@ export function RepairOrdersPanel() {
                               ) =>
                                 void handleStatusChange(
                                   order.id,
-                                  event
-                                    .target
+                                  event.target
                                     .value as RepairStatus,
                                 )
                               }
@@ -733,8 +1084,7 @@ export function RepairOrdersPanel() {
                             <div className="status-timeline">
                               {order
                                 .statusHistory
-                                ?.length >
-                              0 ? (
+                                ?.length > 0 ? (
                                 order.statusHistory.map(
                                   (
                                     historyItem,
@@ -798,9 +1148,8 @@ export function RepairOrdersPanel() {
                                 )
                               ) : (
                                 <p className="history-empty">
-                                  Esta orden
-                                  no tiene
-                                  historial
+                                  Esta orden no
+                                  tiene historial
                                   registrado.
                                 </p>
                               )}
