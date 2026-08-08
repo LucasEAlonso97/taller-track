@@ -6,6 +6,8 @@ import {
   useState,
 } from 'react';
 
+import { SearchInput } from './SearchInput';
+
 import { getDevices } from '../services/devices';
 
 import {
@@ -34,18 +36,26 @@ const initialForm: CreateRepairOrderInput = {
   estimatedCompletionDate: '',
 };
 
-const statusLabels: Record<RepairStatus, string> = {
+const statusLabels: Record<
+  RepairStatus,
+  string
+> = {
   RECEIVED: 'Recibido',
   IN_DIAGNOSIS: 'En diagnóstico',
-  WAITING_APPROVAL: 'Esperando aprobación',
+  WAITING_APPROVAL:
+    'Esperando aprobación',
   IN_REPAIR: 'En reparación',
-  READY_FOR_PICKUP: 'Listo para retirar',
+  READY_FOR_PICKUP:
+    'Listo para retirar',
   DELIVERED: 'Entregado',
   CANCELLED: 'Cancelado',
   UNREPAIRED: 'Sin reparación',
 };
 
-const quoteStatusLabels: Record<QuoteStatus, string> = {
+const quoteStatusLabels: Record<
+  QuoteStatus,
+  string
+> = {
   PENDING: 'Esperando respuesta',
   APPROVED: 'Aprobado',
   REJECTED: 'Rechazado',
@@ -63,39 +73,59 @@ export function RepairOrdersPanel() {
     useState<Device[]>([]);
 
   const [form, setForm] =
-    useState<CreateRepairOrderInput>(initialForm);
+    useState<CreateRepairOrderInput>(
+      initialForm,
+    );
 
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>('ALL');
 
-  const [expandedOrderId, setExpandedOrderId] =
-    useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
-  const [editingDiagnosisId, setEditingDiagnosisId] =
-    useState<string | null>(null);
+  const [
+    expandedOrderId,
+    setExpandedOrderId,
+  ] = useState<string | null>(null);
 
-  const [diagnosisDraft, setDiagnosisDraft] =
-    useState('');
+  const [
+    editingDiagnosisId,
+    setEditingDiagnosisId,
+  ] = useState<string | null>(null);
 
-  const [savingDiagnosisId, setSavingDiagnosisId] =
-    useState<string | null>(null);
+  const [
+    diagnosisDraft,
+    setDiagnosisDraft,
+  ] = useState('');
 
-  const [editingQuoteId, setEditingQuoteId] =
-    useState<string | null>(null);
+  const [
+    savingDiagnosisId,
+    setSavingDiagnosisId,
+  ] = useState<string | null>(null);
 
-  const [quoteAmountDraft, setQuoteAmountDraft] =
-    useState('');
+  const [
+    editingQuoteId,
+    setEditingQuoteId,
+  ] = useState<string | null>(null);
+
+  const [
+    quoteAmountDraft,
+    setQuoteAmountDraft,
+  ] = useState('');
 
   const [
     quoteDescriptionDraft,
     setQuoteDescriptionDraft,
   ] = useState('');
 
-  const [savingQuoteId, setSavingQuoteId] =
-    useState<string | null>(null);
+  const [
+    savingQuoteId,
+    setSavingQuoteId,
+  ] = useState<string | null>(null);
 
-  const [respondingQuoteId, setRespondingQuoteId] =
-    useState<string | null>(null);
+  const [
+    respondingQuoteId,
+    setRespondingQuoteId,
+  ] = useState<string | null>(null);
 
   const [loading, setLoading] =
     useState(true);
@@ -103,48 +133,93 @@ export function RepairOrdersPanel() {
   const [saving, setSaving] =
     useState(false);
 
-  const [updatingOrderId, setUpdatingOrderId] =
-    useState<string | null>(null);
+  const [
+    updatingOrderId,
+    setUpdatingOrderId,
+  ] = useState<string | null>(null);
 
   const [error, setError] =
     useState<string | null>(null);
 
   useEffect(() => {
-    const loadData = async (): Promise<void> => {
-      try {
-        setError(null);
+    const loadData =
+      async (): Promise<void> => {
+        try {
+          setError(null);
 
-        const [ordersData, devicesData] =
-          await Promise.all([
+          const [
+            ordersData,
+            devicesData,
+          ] = await Promise.all([
             getRepairOrders(),
             getDevices(),
           ]);
 
-        setOrders(ordersData);
-        setDevices(devicesData);
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : 'No se pudieron cargar los datos.',
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+          setOrders(ordersData);
+          setDevices(devicesData);
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los datos.',
+          );
+        } finally {
+          setLoading(false);
+        }
+      };
 
     void loadData();
   }, []);
 
   const filteredOrders = useMemo(() => {
-    if (statusFilter === 'ALL') {
-      return orders;
-    }
+    const query = search
+      .trim()
+      .toLowerCase();
 
-    return orders.filter(
-      (order) => order.status === statusFilter,
-    );
-  }, [orders, statusFilter]);
+    return orders.filter((order) => {
+      const matchesStatus =
+        statusFilter === 'ALL' ||
+        order.status === statusFilter;
+
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const clientName =
+        `${order.device.client.firstName} ${order.device.client.lastName}`.toLowerCase();
+
+      const deviceName =
+        `${order.device.brand} ${order.device.model}`.toLowerCase();
+
+      const diagnosisMatches =
+        order.diagnosis
+          ?.toLowerCase()
+          .includes(query) ?? false;
+
+      return (
+        order.code
+          .toLowerCase()
+          .includes(query) ||
+        clientName.includes(query) ||
+        deviceName.includes(query) ||
+        order.device.type
+          .toLowerCase()
+          .includes(query) ||
+        order.reportedIssue
+          .toLowerCase()
+          .includes(query) ||
+        diagnosisMatches
+      );
+    });
+  }, [
+    orders,
+    statusFilter,
+    search,
+  ]);
 
   const handleChange = (
     event: ChangeEvent<
@@ -153,7 +228,8 @@ export function RepairOrdersPanel() {
       HTMLTextAreaElement
     >,
   ): void => {
-    const { name, value } = event.target;
+    const { name, value } =
+      event.target;
 
     setForm((current) => ({
       ...current,
@@ -173,7 +249,9 @@ export function RepairOrdersPanel() {
       const newOrder =
         await createRepairOrder({
           deviceId: form.deviceId,
-          reportedIssue: form.reportedIssue,
+
+          reportedIssue:
+            form.reportedIssue,
 
           estimatedCompletionDate:
             form.estimatedCompletionDate
@@ -246,15 +324,17 @@ export function RepairOrdersPanel() {
     order: RepairOrder,
   ): void => {
     setEditingDiagnosisId(order.id);
+
     setDiagnosisDraft(
       order.diagnosis ?? '',
     );
   };
 
-  const handleCancelDiagnosis = (): void => {
-    setEditingDiagnosisId(null);
-    setDiagnosisDraft('');
-  };
+  const handleCancelDiagnosis =
+    (): void => {
+      setEditingDiagnosisId(null);
+      setDiagnosisDraft('');
+    };
 
   const handleSaveDiagnosis = async (
     orderId: string,
@@ -267,7 +347,8 @@ export function RepairOrdersPanel() {
         await updateRepairDiagnosis(
           orderId,
           {
-            diagnosis: diagnosisDraft,
+            diagnosis:
+              diagnosisDraft,
           },
         );
 
@@ -304,20 +385,24 @@ export function RepairOrdersPanel() {
     );
 
     setQuoteDescriptionDraft(
-      order.quote?.description ?? '',
+      order.quote?.description ??
+        '',
     );
   };
 
-  const handleCancelQuote = (): void => {
-    setEditingQuoteId(null);
-    setQuoteAmountDraft('');
-    setQuoteDescriptionDraft('');
-  };
+  const handleCancelQuote =
+    (): void => {
+      setEditingQuoteId(null);
+      setQuoteAmountDraft('');
+      setQuoteDescriptionDraft('');
+    };
 
   const handleSaveQuote = async (
     orderId: string,
   ): Promise<void> => {
-    const amount = Number(quoteAmountDraft);
+    const amount = Number(
+      quoteAmountDraft,
+    );
 
     if (
       !Number.isInteger(amount) ||
@@ -340,7 +425,8 @@ export function RepairOrdersPanel() {
             amount,
 
             description:
-              quoteDescriptionDraft.trim() ||
+              quoteDescriptionDraft
+                .trim() ||
               undefined,
           },
         );
@@ -478,24 +564,26 @@ export function RepairOrdersPanel() {
                   Seleccionar equipo
                 </option>
 
-                {devices.map((device) => (
-                  <option
-                    key={device.id}
-                    value={device.id}
-                  >
-                    {
-                      device.client
-                        .firstName
-                    }{' '}
-                    {
-                      device.client
-                        .lastName
-                    }
-                    {' — '}
-                    {device.brand}{' '}
-                    {device.model}
-                  </option>
-                ))}
+                {devices.map(
+                  (device) => (
+                    <option
+                      key={device.id}
+                      value={device.id}
+                    >
+                      {
+                        device.client
+                          .firstName
+                      }{' '}
+                      {
+                        device.client
+                          .lastName
+                      }
+                      {' — '}
+                      {device.brand}{' '}
+                      {device.model}
+                    </option>
+                  ),
+                )}
               </select>
             </label>
 
@@ -568,21 +656,37 @@ export function RepairOrdersPanel() {
                 Todos los estados
               </option>
 
-              {statuses.map((status) => (
-                <option
-                  key={status}
-                  value={status}
-                >
-                  {statusLabels[status]}
-                </option>
-              ))}
+              {statuses.map(
+                (status) => (
+                  <option
+                    key={status}
+                    value={status}
+                  >
+                    {
+                      statusLabels[
+                        status
+                      ]
+                    }
+                  </option>
+                ),
+              )}
             </select>
           </div>
+
+          {!loading &&
+            orders.length > 0 && (
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar por código, cliente, equipo o problema..."
+              />
+            )}
 
           {!loading && (
             <p className="repair-results">
               {filteredOrders.length}{' '}
-              {filteredOrders.length === 1
+              {filteredOrders.length ===
+              1
                 ? 'orden'
                 : 'órdenes'}
             </p>
@@ -595,15 +699,27 @@ export function RepairOrdersPanel() {
           )}
 
           {!loading &&
-            filteredOrders.length === 0 && (
+            orders.length === 0 && (
               <p className="empty-state">
-                No hay reparaciones
-                para este estado.
+                Todavía no hay
+                reparaciones registradas.
               </p>
             )}
 
           {!loading &&
-            filteredOrders.length > 0 && (
+            orders.length > 0 &&
+            filteredOrders.length ===
+              0 && (
+              <p className="empty-state">
+                No encontramos
+                reparaciones con los
+                filtros actuales.
+              </p>
+            )}
+
+          {!loading &&
+            filteredOrders.length >
+              0 && (
               <div className="repair-list">
                 {filteredOrders.map(
                   (order) => {
@@ -639,7 +755,9 @@ export function RepairOrdersPanel() {
                         <div className="repair-card-header">
                           <div>
                             <strong className="repair-code">
-                              {order.code}
+                              {
+                                order.code
+                              }
                             </strong>
 
                             <span
@@ -647,7 +765,8 @@ export function RepairOrdersPanel() {
                             >
                               {
                                 statusLabels[
-                                  order.status
+                                  order
+                                    .status
                                 ]
                               }
                             </span>
@@ -731,7 +850,8 @@ export function RepairOrdersPanel() {
                                   event,
                                 ) =>
                                   setDiagnosisDraft(
-                                    event.target
+                                    event
+                                      .target
                                       .value,
                                   )
                                 }
@@ -761,7 +881,8 @@ export function RepairOrdersPanel() {
                                   disabled={
                                     diagnosisDraft
                                       .trim()
-                                      .length < 3 ||
+                                      .length <
+                                      3 ||
                                     isSavingDiagnosis
                                   }
                                   onClick={() =>
@@ -803,7 +924,8 @@ export function RepairOrdersPanel() {
                                 >
                                   {
                                     quoteStatusLabels[
-                                      order.quote
+                                      order
+                                        .quote
                                         .status
                                     ]
                                   }
@@ -844,7 +966,8 @@ export function RepairOrdersPanel() {
                                     event,
                                   ) =>
                                     setQuoteAmountDraft(
-                                      event.target
+                                      event
+                                        .target
                                         .value,
                                     )
                                   }
@@ -863,7 +986,8 @@ export function RepairOrdersPanel() {
                                     event,
                                   ) =>
                                     setQuoteDescriptionDraft(
-                                      event.target
+                                      event
+                                        .target
                                         .value,
                                     )
                                   }
@@ -894,7 +1018,8 @@ export function RepairOrdersPanel() {
                                     !quoteAmountDraft ||
                                     Number(
                                       quoteAmountDraft,
-                                    ) <= 0 ||
+                                    ) <=
+                                      0 ||
                                     isSavingQuote
                                   }
                                   onClick={() =>
@@ -913,7 +1038,8 @@ export function RepairOrdersPanel() {
                             <div className="quote-content">
                               <strong className="quote-amount">
                                 {formatCurrency(
-                                  order.quote
+                                  order
+                                    .quote
                                     .amount,
                                 )}
                               </strong>
@@ -922,13 +1048,15 @@ export function RepairOrdersPanel() {
                                 .description && (
                                 <p>
                                   {
-                                    order.quote
+                                    order
+                                      .quote
                                       .description
                                   }
                                 </p>
                               )}
 
-                              {order.quote.status ===
+                              {order.quote
+                                .status ===
                                 'PENDING' && (
                                 <div className="quote-response-actions">
                                   <button
@@ -972,7 +1100,8 @@ export function RepairOrdersPanel() {
                                 <span className="quote-response-date">
                                   Respondido:{' '}
                                   {new Date(
-                                    order.quote
+                                    order
+                                      .quote
                                       .respondedAt,
                                   ).toLocaleString(
                                     'es-AR',
@@ -988,15 +1117,17 @@ export function RepairOrdersPanel() {
                             </div>
                           ) : (
                             <p className="diagnosis-empty">
-                              Todavía no se cargó
-                              un presupuesto.
+                              Todavía no se
+                              cargó un
+                              presupuesto.
                             </p>
                           )}
                         </div>
 
                         {order.estimatedCompletionDate && (
                           <p className="repair-estimated">
-                            Entrega estimada:{' '}
+                            Entrega
+                            estimada:{' '}
                             {new Date(
                               order.estimatedCompletionDate,
                             ).toLocaleString(
@@ -1028,13 +1159,16 @@ export function RepairOrdersPanel() {
                               ) =>
                                 void handleStatusChange(
                                   order.id,
-                                  event.target
+                                  event
+                                    .target
                                     .value as RepairStatus,
                                 )
                               }
                             >
                               {statuses.map(
-                                (status) => (
+                                (
+                                  status,
+                                ) => (
                                   <option
                                     key={
                                       status
@@ -1084,7 +1218,8 @@ export function RepairOrdersPanel() {
                             <div className="status-timeline">
                               {order
                                 .statusHistory
-                                ?.length > 0 ? (
+                                ?.length >
+                              0 ? (
                                 order.statusHistory.map(
                                   (
                                     historyItem,
