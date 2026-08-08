@@ -11,6 +11,7 @@ import { getDevices } from '../services/devices';
 import {
   createRepairOrder,
   getRepairOrders,
+  updateRepairDiagnosis,
   updateRepairOrderStatus,
 } from '../services/repair-orders';
 
@@ -61,8 +62,20 @@ export function RepairOrdersPanel() {
   const [expandedOrderId, setExpandedOrderId] =
     useState<string | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [editingDiagnosisId, setEditingDiagnosisId] =
+    useState<string | null>(null);
+
+  const [diagnosisDraft, setDiagnosisDraft] =
+    useState('');
+
+  const [savingDiagnosisId, setSavingDiagnosisId] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
 
   const [updatingOrderId, setUpdatingOrderId] =
     useState<string | null>(null);
@@ -131,17 +144,18 @@ export function RepairOrdersPanel() {
       setSaving(true);
       setError(null);
 
-      const newOrder = await createRepairOrder({
-        deviceId: form.deviceId,
-        reportedIssue: form.reportedIssue,
+      const newOrder =
+        await createRepairOrder({
+          deviceId: form.deviceId,
+          reportedIssue: form.reportedIssue,
 
-        estimatedCompletionDate:
-          form.estimatedCompletionDate
-            ? new Date(
-                form.estimatedCompletionDate,
-              ).toISOString()
-            : undefined,
-      });
+          estimatedCompletionDate:
+            form.estimatedCompletionDate
+              ? new Date(
+                  form.estimatedCompletionDate,
+                ).toISOString()
+              : undefined,
+        });
 
       setOrders((current) => [
         newOrder,
@@ -192,10 +206,65 @@ export function RepairOrdersPanel() {
     }
   };
 
-  const toggleHistory = (orderId: string): void => {
+  const toggleHistory = (
+    orderId: string,
+  ): void => {
     setExpandedOrderId((current) =>
-      current === orderId ? null : orderId,
+      current === orderId
+        ? null
+        : orderId,
     );
+  };
+
+  const handleEditDiagnosis = (
+    order: RepairOrder,
+  ): void => {
+    setEditingDiagnosisId(order.id);
+    setDiagnosisDraft(
+      order.diagnosis ?? '',
+    );
+  };
+
+  const handleCancelDiagnosis =
+    (): void => {
+      setEditingDiagnosisId(null);
+      setDiagnosisDraft('');
+    };
+
+  const handleSaveDiagnosis = async (
+    orderId: string,
+  ): Promise<void> => {
+    try {
+      setSavingDiagnosisId(orderId);
+      setError(null);
+
+      const updatedOrder =
+        await updateRepairDiagnosis(
+          orderId,
+          {
+            diagnosis: diagnosisDraft,
+          },
+        );
+
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === updatedOrder.id
+            ? updatedOrder
+            : order,
+        ),
+      );
+
+      setEditingDiagnosisId(null);
+      setDiagnosisDraft('');
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el diagnóstico.',
+      );
+    } finally {
+      setSavingDiagnosisId(null);
+    }
   };
 
   return (
@@ -211,14 +280,19 @@ export function RepairOrdersPanel() {
           </h2>
 
           <p>
-            Registrá ingresos y gestioná el avance
-            de cada reparación.
+            Registrá ingresos y gestioná
+            el avance de cada reparación.
           </p>
         </div>
 
         <div className="client-counter">
-          <strong>{orders.length}</strong>
-          <span>órdenes</span>
+          <strong>
+            {orders.length}
+          </strong>
+
+          <span>
+            órdenes
+          </span>
         </div>
       </header>
 
@@ -264,10 +338,17 @@ export function RepairOrdersPanel() {
                     key={device.id}
                     value={device.id}
                   >
-                    {device.client.firstName}{' '}
-                    {device.client.lastName}
+                    {
+                      device.client
+                        .firstName
+                    }{' '}
+                    {
+                      device.client
+                        .lastName
+                    }
                     {' — '}
-                    {device.brand} {device.model}
+                    {device.brand}{' '}
+                    {device.model}
                   </option>
                 ))}
               </select>
@@ -278,7 +359,9 @@ export function RepairOrdersPanel() {
 
               <textarea
                 name="reportedIssue"
-                value={form.reportedIssue}
+                value={
+                  form.reportedIssue
+                }
                 onChange={handleChange}
                 rows={5}
                 minLength={5}
@@ -288,13 +371,15 @@ export function RepairOrdersPanel() {
             </label>
 
             <label>
-              Fecha estimada de finalización
+              Fecha estimada de
+              finalización
 
               <input
                 type="datetime-local"
                 name="estimatedCompletionDate"
                 value={
-                  form.estimatedCompletionDate ?? ''
+                  form.estimatedCompletionDate ??
+                  ''
                 }
                 onChange={handleChange}
               />
@@ -329,7 +414,8 @@ export function RepairOrdersPanel() {
               value={statusFilter}
               onChange={(event) =>
                 setStatusFilter(
-                  event.target.value as StatusFilter,
+                  event.target
+                    .value as StatusFilter,
                 )
               }
             >
@@ -351,7 +437,8 @@ export function RepairOrdersPanel() {
           {!loading && (
             <p className="repair-results">
               {filteredOrders.length}{' '}
-              {filteredOrders.length === 1
+              {filteredOrders.length ===
+              1
                 ? 'orden'
                 : 'órdenes'}
             </p>
@@ -364,223 +451,366 @@ export function RepairOrdersPanel() {
           )}
 
           {!loading &&
-            filteredOrders.length === 0 && (
+            filteredOrders.length ===
+              0 && (
               <p className="empty-state">
-                No hay reparaciones para este estado.
+                No hay reparaciones
+                para este estado.
               </p>
             )}
 
           {!loading &&
-            filteredOrders.length > 0 && (
+            filteredOrders.length >
+              0 && (
               <div className="repair-list">
-                {filteredOrders.map((order) => {
-                  const isHistoryOpen =
-                    expandedOrderId === order.id;
+                {filteredOrders.map(
+                  (order) => {
+                    const isHistoryOpen =
+                      expandedOrderId ===
+                      order.id;
 
-                  return (
-                    <article
-                      key={order.id}
-                      className="repair-card"
-                    >
-                      <div className="repair-card-header">
-                        <div>
-                          <strong className="repair-code">
-                            {order.code}
-                          </strong>
+                    const isEditingDiagnosis =
+                      editingDiagnosisId ===
+                      order.id;
 
-                          <span
-                            className={`repair-status status-${order.status.toLowerCase()}`}
-                          >
-                            {
-                              statusLabels[
-                                order.status
-                              ]
-                            }
+                    const isSavingDiagnosis =
+                      savingDiagnosisId ===
+                      order.id;
+
+                    return (
+                      <article
+                        key={order.id}
+                        className="repair-card"
+                      >
+                        <div className="repair-card-header">
+                          <div>
+                            <strong className="repair-code">
+                              {
+                                order.code
+                              }
+                            </strong>
+
+                            <span
+                              className={`repair-status status-${order.status.toLowerCase()}`}
+                            >
+                              {
+                                statusLabels[
+                                  order
+                                    .status
+                                ]
+                              }
+                            </span>
+                          </div>
+
+                          <span className="repair-date">
+                            {new Date(
+                              order.createdAt,
+                            ).toLocaleDateString(
+                              'es-AR',
+                            )}
                           </span>
                         </div>
 
-                        <span className="repair-date">
-                          {new Date(
-                            order.createdAt,
-                          ).toLocaleDateString(
-                            'es-AR',
-                          )}
-                        </span>
-                      </div>
+                        <h4>
+                          {
+                            order.device
+                              .brand
+                          }{' '}
+                          {
+                            order.device
+                              .model
+                          }
+                        </h4>
 
-                      <h4>
-                        {order.device.brand}{' '}
-                        {order.device.model}
-                      </h4>
-
-                      <p className="repair-client">
-                        {
-                          order.device.client
-                            .firstName
-                        }{' '}
-                        {
-                          order.device.client
-                            .lastName
-                        }
-                        {' · '}
-                        {order.device.type}
-                      </p>
-
-                      <p className="repair-issue">
-                        {order.reportedIssue}
-                      </p>
-
-                      {order.estimatedCompletionDate && (
-                        <p className="repair-estimated">
-                          Entrega estimada:{' '}
-                          {new Date(
-                            order.estimatedCompletionDate,
-                          ).toLocaleString(
-                            'es-AR',
-                            {
-                              dateStyle: 'short',
-                              timeStyle: 'short',
-                            },
-                          )}
+                        <p className="repair-client">
+                          {
+                            order.device
+                              .client
+                              .firstName
+                          }{' '}
+                          {
+                            order.device
+                              .client
+                              .lastName
+                          }
+                          {' · '}
+                          {
+                            order.device
+                              .type
+                          }
                         </p>
-                      )}
 
-                      <div className="repair-actions">
-                        <label>
-                          Estado
-
-                          <select
-                            value={order.status}
-                            disabled={
-                              updatingOrderId ===
-                              order.id
-                            }
-                            onChange={(event) =>
-                              void handleStatusChange(
-                                order.id,
-                                event.target
-                                  .value as RepairStatus,
-                              )
-                            }
-                          >
-                            {statuses.map(
-                              (status) => (
-                                <option
-                                  key={status}
-                                  value={status}
-                                >
-                                  {
-                                    statusLabels[
-                                      status
-                                    ]
-                                  }
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-
-                        {updatingOrderId ===
-                          order.id && (
-                          <span className="saving-status">
-                            Actualizando...
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="history-section">
-                        <button
-                          type="button"
-                          className="history-toggle"
-                          onClick={() =>
-                            toggleHistory(order.id)
+                        <p className="repair-issue">
+                          {
+                            order.reportedIssue
                           }
-                          aria-expanded={
-                            isHistoryOpen
-                          }
-                        >
-                          {isHistoryOpen
-                            ? 'Ocultar historial'
-                            : 'Ver historial'}
-                        </button>
+                        </p>
 
-                        {isHistoryOpen && (
-                          <div className="status-timeline">
-                            {order.statusHistory
-                              ?.length > 0 ? (
-                              order.statusHistory.map(
-                                (
-                                  historyItem,
-                                  index,
-                                ) => {
-                                  const isLast =
-                                    index ===
-                                    order
-                                      .statusHistory
-                                      .length -
-                                      1;
+                        <div className="diagnosis-section">
+                          <div className="diagnosis-header">
+                            <span>
+                              Diagnóstico
+                              técnico
+                            </span>
 
-                                  return (
-                                    <div
-                                      className="timeline-item"
-                                      key={
-                                        historyItem.id
-                                      }
-                                    >
-                                      <div className="timeline-marker-column">
-                                        <span
-                                          className={`timeline-dot ${
-                                            isLast
-                                              ? 'current'
-                                              : ''
-                                          }`}
-                                        />
-
-                                        {!isLast && (
-                                          <span className="timeline-line" />
-                                        )}
-                                      </div>
-
-                                      <div className="timeline-content">
-                                        <strong>
-                                          {
-                                            statusLabels[
-                                              historyItem
-                                                .status
-                                            ]
-                                          }
-                                        </strong>
-
-                                        <span>
-                                          {new Date(
-                                            historyItem.createdAt,
-                                          ).toLocaleString(
-                                            'es-AR',
-                                            {
-                                              dateStyle:
-                                                'short',
-                                              timeStyle:
-                                                'short',
-                                            },
-                                          )}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                },
-                              )
-                            ) : (
-                              <p className="history-empty">
-                                Esta orden no tiene
-                                historial registrado.
-                              </p>
+                            {!isEditingDiagnosis && (
+                              <button
+                                type="button"
+                                className="diagnosis-edit-button"
+                                onClick={() =>
+                                  handleEditDiagnosis(
+                                    order,
+                                  )
+                                }
+                              >
+                                {order.diagnosis
+                                  ? 'Editar'
+                                  : 'Agregar diagnóstico'}
+                              </button>
                             )}
                           </div>
+
+                          {isEditingDiagnosis ? (
+                            <div className="diagnosis-editor">
+                              <textarea
+                                value={
+                                  diagnosisDraft
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  setDiagnosisDraft(
+                                    event
+                                      .target
+                                      .value,
+                                  )
+                                }
+                                rows={4}
+                                minLength={3}
+                                maxLength={2000}
+                                placeholder="Describí el diagnóstico técnico..."
+                              />
+
+                              <div className="diagnosis-actions">
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  onClick={
+                                    handleCancelDiagnosis
+                                  }
+                                  disabled={
+                                    isSavingDiagnosis
+                                  }
+                                >
+                                  Cancelar
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="primary-button"
+                                  disabled={
+                                    diagnosisDraft
+                                      .trim()
+                                      .length <
+                                      3 ||
+                                    isSavingDiagnosis
+                                  }
+                                  onClick={() =>
+                                    void handleSaveDiagnosis(
+                                      order.id,
+                                    )
+                                  }
+                                >
+                                  {isSavingDiagnosis
+                                    ? 'Guardando...'
+                                    : 'Guardar diagnóstico'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p
+                              className={
+                                order.diagnosis
+                                  ? 'diagnosis-text'
+                                  : 'diagnosis-empty'
+                              }
+                            >
+                              {order.diagnosis ??
+                                'Todavía no se cargó un diagnóstico.'}
+                            </p>
+                          )}
+                        </div>
+
+                        {order.estimatedCompletionDate && (
+                          <p className="repair-estimated">
+                            Entrega
+                            estimada:{' '}
+                            {new Date(
+                              order.estimatedCompletionDate,
+                            ).toLocaleString(
+                              'es-AR',
+                              {
+                                dateStyle:
+                                  'short',
+                                timeStyle:
+                                  'short',
+                              },
+                            )}
+                          </p>
                         )}
-                      </div>
-                    </article>
-                  );
-                })}
+
+                        <div className="repair-actions">
+                          <label>
+                            Estado
+
+                            <select
+                              value={
+                                order.status
+                              }
+                              disabled={
+                                updatingOrderId ===
+                                order.id
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                void handleStatusChange(
+                                  order.id,
+                                  event
+                                    .target
+                                    .value as RepairStatus,
+                                )
+                              }
+                            >
+                              {statuses.map(
+                                (status) => (
+                                  <option
+                                    key={
+                                      status
+                                    }
+                                    value={
+                                      status
+                                    }
+                                  >
+                                    {
+                                      statusLabels[
+                                        status
+                                      ]
+                                    }
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          {updatingOrderId ===
+                            order.id && (
+                            <span className="saving-status">
+                              Actualizando...
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="history-section">
+                          <button
+                            type="button"
+                            className="history-toggle"
+                            onClick={() =>
+                              toggleHistory(
+                                order.id,
+                              )
+                            }
+                            aria-expanded={
+                              isHistoryOpen
+                            }
+                          >
+                            {isHistoryOpen
+                              ? 'Ocultar historial'
+                              : 'Ver historial'}
+                          </button>
+
+                          {isHistoryOpen && (
+                            <div className="status-timeline">
+                              {order
+                                .statusHistory
+                                ?.length >
+                              0 ? (
+                                order.statusHistory.map(
+                                  (
+                                    historyItem,
+                                    index,
+                                  ) => {
+                                    const isLast =
+                                      index ===
+                                      order
+                                        .statusHistory
+                                        .length -
+                                        1;
+
+                                    return (
+                                      <div
+                                        className="timeline-item"
+                                        key={
+                                          historyItem.id
+                                        }
+                                      >
+                                        <div className="timeline-marker-column">
+                                          <span
+                                            className={`timeline-dot ${
+                                              isLast
+                                                ? 'current'
+                                                : ''
+                                            }`}
+                                          />
+
+                                          {!isLast && (
+                                            <span className="timeline-line" />
+                                          )}
+                                        </div>
+
+                                        <div className="timeline-content">
+                                          <strong>
+                                            {
+                                              statusLabels[
+                                                historyItem
+                                                  .status
+                                              ]
+                                            }
+                                          </strong>
+
+                                          <span>
+                                            {new Date(
+                                              historyItem.createdAt,
+                                            ).toLocaleString(
+                                              'es-AR',
+                                              {
+                                                dateStyle:
+                                                  'short',
+                                                timeStyle:
+                                                  'short',
+                                              },
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                )
+                              ) : (
+                                <p className="history-empty">
+                                  Esta orden
+                                  no tiene
+                                  historial
+                                  registrado.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  },
+                )}
               </div>
             )}
         </section>

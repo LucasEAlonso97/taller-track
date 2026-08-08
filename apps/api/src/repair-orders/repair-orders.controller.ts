@@ -7,7 +7,9 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+
 import { CreateRepairOrderDto } from './dto/create-repair-order.dto';
+import { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
 import { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
 import { RepairOrdersService } from './repair-orders.service';
 
@@ -35,14 +37,16 @@ export class RepairOrdersController {
 
   @Get(':id')
   findOne(
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', new ParseUUIDPipe())
+    id: string,
   ) {
     return this.repairOrdersService.findOne(id);
   }
 
   @Patch(':id/status')
   updateStatus(
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', new ParseUUIDPipe())
+    id: string,
 
     @Body()
     updateRepairStatusDto: UpdateRepairStatusDto,
@@ -50,6 +54,20 @@ export class RepairOrdersController {
     return this.repairOrdersService.updateStatus(
       id,
       updateRepairStatusDto,
+    );
+  }
+
+  @Patch(':id/diagnosis')
+  updateDiagnosis(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+
+    @Body()
+    updateRepairDiagnosisDto: UpdateRepairDiagnosisDto,
+  ) {
+    return this.repairOrdersService.updateDiagnosis(
+      id,
+      updateRepairDiagnosisDto,
     );
   }
 }

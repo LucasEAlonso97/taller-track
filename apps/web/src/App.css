@@ -717,3 +717,97 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+.diagnosis-section {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.diagnosis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnosis-header > span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diagnosis-edit-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #7b1730;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diagnosis-edit-button:hover {
+  text-decoration: underline;
+}
+
+.diagnosis-text {
+  margin: 10px 0 0;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.diagnosis-empty {
+  margin: 10px 0 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.diagnosis-editor {
+  margin-top: 12px;
+}
+
+.diagnosis-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  resize: vertical;
+}
+
+.diagnosis-editor textarea:focus {
+  outline: none;
+  border-color: #7b1730;
+}
+
+.diagnosis-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.secondary-button {
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4b5563;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #f9fafb;
+}
