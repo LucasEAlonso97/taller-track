@@ -44,6 +44,7 @@ export interface RepairOrder {
   deviceId: string;
   createdAt: string;
   updatedAt: string;
+  trackingToken: string;
 
   device: Device;
   statusHistory: RepairStatusHistory[];
