@@ -6,6 +6,7 @@ import { ClientsModule } from './clients/clients.module';
 import { PrismaModule } from './database/prisma.module';
 import { DevicesModule } from './devices/devices.module';
 import { RepairOrdersModule } from './repair-orders/repair-orders.module';
+import { TrackingModule } from './tracking/tracking.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RepairOrdersModule } from './repair-orders/repair-orders.module';
     ClientsModule,
     DevicesModule,
     RepairOrdersModule,
+    TrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
