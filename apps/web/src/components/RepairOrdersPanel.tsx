@@ -7,6 +7,7 @@ import {
 } from 'react';
 
 import { SearchInput } from './SearchInput';
+import { TrackingShareActions } from './TrackingShareActions';
 
 import { getDevices } from '../services/devices';
 
@@ -1290,14 +1291,22 @@ export function RepairOrdersPanel() {
                               )}
                             </div>
                           )}
+                          <TrackingShareActions
+  trackingToken={order.trackingToken}
+  orderCode={order.code}
+/>
                         </div>
                       </article>
                     );
                   },
+                  
                 )}
+                
               </div>
             )}
+            
         </section>
+        
       </div>
     </>
   );
