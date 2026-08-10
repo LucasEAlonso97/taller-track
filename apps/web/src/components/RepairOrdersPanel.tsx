@@ -1360,6 +1360,10 @@ export function RepairOrdersPanel({
                           <TrackingShareActions
   trackingToken={order.trackingToken}
   orderCode={order.code}
+  clientPhone={order.device.client.phone}
+  deviceName={`${order.device.brand} ${order.device.model}`}
+  status={order.status}
+  quoteAmount={order.quote?.amount}
 />
                         </div>
                       </article>
