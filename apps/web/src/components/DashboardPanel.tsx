@@ -8,8 +8,8 @@ import { getClients } from '../services/clients';
 import { getDevices } from '../services/devices';
 import { getRepairOrders } from '../services/repair-orders';
 
-import type { Client } from '../types/client';
-import type { Device } from '../types/device';
+import type { RepairFilter } from '../types/repair-filter';
+
 import type {
   RepairOrder,
   RepairStatus,
@@ -26,21 +26,27 @@ const statusLabels: Record<RepairStatus, string> = {
   UNREPAIRED: 'Sin reparación',
 };
 
-const inactiveStatuses: RepairStatus[] = [
+const closedStatuses: RepairStatus[] = [
   'DELIVERED',
   'CANCELLED',
   'UNREPAIRED',
 ];
 
-export function DashboardPanel() {
-  const [clients, setClients] =
-    useState<Client[]>([]);
+interface DashboardPanelProps {
+  onOpenRepairs: (filter: RepairFilter) => void;
+}
 
-  const [devices, setDevices] =
-    useState<Device[]>([]);
-
+export function DashboardPanel({
+  onOpenRepairs,
+}: DashboardPanelProps) {
   const [orders, setOrders] =
     useState<RepairOrder[]>([]);
+
+  const [clientsCount, setClientsCount] =
+    useState(0);
+
+  const [devicesCount, setDevicesCount] =
+    useState(0);
 
   const [loading, setLoading] =
     useState(true);
@@ -55,23 +61,23 @@ export function DashboardPanel() {
           setError(null);
 
           const [
-            clientsData,
-            devicesData,
-            ordersData,
+            clients,
+            devices,
+            repairOrders,
           ] = await Promise.all([
             getClients(),
             getDevices(),
             getRepairOrders(),
           ]);
 
-          setClients(clientsData);
-          setDevices(devicesData);
-          setOrders(ordersData);
+          setClientsCount(clients.length);
+          setDevicesCount(devices.length);
+          setOrders(repairOrders);
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : 'No se pudo cargar el resumen.',
+              : 'No se pudo cargar el dashboard.',
           );
         } finally {
           setLoading(false);
@@ -81,107 +87,116 @@ export function DashboardPanel() {
     void loadDashboard();
   }, []);
 
-  const activeOrders = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          !inactiveStatuses.includes(
-            order.status,
-          ),
-      ),
-    [orders],
-  );
+  const dashboardData = useMemo(() => {
+    const now = Date.now();
 
-  const waitingApproval = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          order.status ===
-          'WAITING_APPROVAL',
-      ).length,
-    [orders],
-  );
+    const threeDaysInMilliseconds =
+      3 * 24 * 60 * 60 * 1000;
 
-  const inRepair = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          order.status === 'IN_REPAIR',
-      ).length,
-    [orders],
-  );
+    const activeOrders = orders.filter(
+      (order) =>
+        !closedStatuses.includes(
+          order.status,
+        ),
+    );
 
-  const readyForPickup = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          order.status ===
-          'READY_FOR_PICKUP',
-      ).length,
-    [orders],
-  );
+    const waitingApproval = orders.filter(
+      (order) =>
+        order.status ===
+        'WAITING_APPROVAL',
+    );
 
-  const recentOrders = useMemo(
-    () => orders.slice(0, 5),
-    [orders],
-  );
+    const readyForPickup = orders.filter(
+      (order) =>
+        order.status ===
+        'READY_FOR_PICKUP',
+    );
+
+    const overdue = activeOrders.filter(
+      (order) => {
+        if (
+          !order.estimatedCompletionDate
+        ) {
+          return false;
+        }
+
+        return (
+          new Date(
+            order.estimatedCompletionDate,
+          ).getTime() < now
+        );
+      },
+    );
+
+    const stale = activeOrders.filter(
+      (order) => {
+        const updatedAt =
+          new Date(
+            order.updatedAt,
+          ).getTime();
+
+        return (
+          now - updatedAt >=
+          threeDaysInMilliseconds
+        );
+      },
+    );
+
+    return {
+      activeOrders,
+      waitingApproval,
+      readyForPickup,
+      overdue,
+      stale,
+      recentOrders: orders.slice(0, 5),
+    };
+  }, [orders]);
 
   if (loading) {
     return (
-      <p className="empty-state">
-        Cargando resumen del taller...
-      </p>
+      <div className="panel">
+        <p>Cargando dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <p className="error-message">
+          {error}
+        </p>
+      </div>
     );
   }
 
   return (
-    <>
-      <header className="page-header">
+    <div className="dashboard-panel">
+      <div className="section-heading">
         <div>
-          <p className="eyebrow">
-            Inicio
-          </p>
-
-          <h2>
-            Resumen del taller
-          </h2>
+          <h1>Inicio</h1>
 
           <p>
-            Una vista rápida de la actividad
-            actual de TallerTrack.
+            Resumen general del taller.
           </p>
         </div>
-      </header>
-
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      </div>
 
       <div className="dashboard-stats">
         <article className="dashboard-stat-card">
           <span>Clientes</span>
 
           <strong>
-            {clients.length}
+            {clientsCount}
           </strong>
-
-          <p>
-            Registrados
-          </p>
         </article>
 
         <article className="dashboard-stat-card">
           <span>Equipos</span>
 
           <strong>
-            {devices.length}
+            {devicesCount}
           </strong>
-
-          <p>
-            Registrados
-          </p>
         </article>
 
         <article className="dashboard-stat-card">
@@ -190,12 +205,11 @@ export function DashboardPanel() {
           </span>
 
           <strong>
-            {activeOrders.length}
+            {
+              dashboardData
+                .activeOrders.length
+            }
           </strong>
-
-          <p>
-            En proceso
-          </p>
         </article>
 
         <article className="dashboard-stat-card">
@@ -206,95 +220,173 @@ export function DashboardPanel() {
           <strong>
             {orders.length}
           </strong>
-
-          <p>
-            Históricas
-          </p>
         </article>
       </div>
 
-      <div className="dashboard-overview-grid">
-        <section className="panel">
-          <div className="panel-header">
+      <section className="dashboard-attention-section">
+        <div className="dashboard-section-header">
+          <div>
+            <span className="dashboard-eyebrow">
+              Trabajo pendiente
+            </span>
+
+            <h2>
+              Necesitan atención
+            </h2>
+          </div>
+
+          <p>
+            Situaciones que conviene
+            revisar hoy.
+          </p>
+        </div>
+
+        <div className="dashboard-attention-grid">
+          <button
+            type="button"
+            className="attention-card"
+            onClick={() =>
+              onOpenRepairs(
+                'WAITING_APPROVAL',
+              )
+            }
+          >
             <div>
-              <span className="panel-label">
-                Estado actual
+              <span className="attention-card-label">
+                Esperando aprobación
               </span>
 
-              <h3>
-                Reparaciones pendientes
-              </h3>
-            </div>
-          </div>
-
-          <div className="dashboard-status-list">
-            <div className="dashboard-status-row">
-              <div>
-                <span className="status-indicator" />
-
-                <span>
-                  Esperando aprobación
-                </span>
-              </div>
-
               <strong>
-                {waitingApproval}
+                {
+                  dashboardData
+                    .waitingApproval
+                    .length
+                }
               </strong>
             </div>
 
-            <div className="dashboard-status-row">
-              <div>
-                <span className="status-indicator" />
+            <span className="attention-card-description">
+              Presupuestos pendientes de
+              respuesta
+            </span>
+          </button>
 
-                <span>
-                  En reparación
-                </span>
-              </div>
-
-              <strong>
-                {inRepair}
-              </strong>
-            </div>
-
-            <div className="dashboard-status-row">
-              <div>
-                <span className="status-indicator" />
-
-                <span>
-                  Listos para retirar
-                </span>
-              </div>
-
-              <strong>
-                {readyForPickup}
-              </strong>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-header">
+          <button
+            type="button"
+            className="attention-card"
+            onClick={() =>
+              onOpenRepairs(
+                'READY_FOR_PICKUP',
+              )
+            }
+          >
             <div>
-              <span className="panel-label">
-                Actividad reciente
+              <span className="attention-card-label">
+                Listas para retirar
               </span>
 
-              <h3>
-                Últimas reparaciones
-              </h3>
+              <strong>
+                {
+                  dashboardData
+                    .readyForPickup
+                    .length
+                }
+              </strong>
             </div>
-          </div>
 
-          {recentOrders.length === 0 ? (
-            <p className="empty-state">
-              Todavía no hay reparaciones.
-            </p>
-          ) : (
-            <div className="recent-orders">
-              {recentOrders.map((order) => (
+            <span className="attention-card-description">
+              Equipos esperando al cliente
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`attention-card ${
+              dashboardData.overdue
+                .length > 0
+                ? 'attention-card-warning'
+                : ''
+            }`}
+            onClick={() =>
+              onOpenRepairs('OVERDUE')
+            }
+          >
+            <div>
+              <span className="attention-card-label">
+                Reparaciones atrasadas
+              </span>
+
+              <strong>
+                {
+                  dashboardData
+                    .overdue.length
+                }
+              </strong>
+            </div>
+
+            <span className="attention-card-description">
+              Superaron la fecha estimada
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`attention-card ${
+              dashboardData.stale
+                .length > 0
+                ? 'attention-card-warning'
+                : ''
+            }`}
+            onClick={() =>
+              onOpenRepairs('STALE')
+            }
+          >
+            <div>
+              <span className="attention-card-label">
+                Sin actualizar +3 días
+              </span>
+
+              <strong>
+                {
+                  dashboardData
+                    .stale.length
+                }
+              </strong>
+            </div>
+
+            <span className="attention-card-description">
+              Órdenes activas sin movimientos
+              recientes
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section className="dashboard-recent-section">
+        <div className="dashboard-section-header">
+          <div>
+            <span className="dashboard-eyebrow">
+              Actividad
+            </span>
+
+            <h2>
+              Reparaciones recientes
+            </h2>
+          </div>
+        </div>
+
+        {dashboardData.recentOrders
+          .length === 0 ? (
+          <p className="empty-state">
+            Todavía no hay reparaciones.
+          </p>
+        ) : (
+          <div className="recent-orders">
+            {dashboardData.recentOrders.map(
+              (order) => (
                 <article
-                  key={order.id}
                   className="recent-order"
+                  key={order.id}
                 >
                   <div>
                     <strong>
@@ -305,17 +397,6 @@ export function DashboardPanel() {
                       {order.device.brand}{' '}
                       {order.device.model}
                     </span>
-
-                    <small>
-                      {
-                        order.device.client
-                          .firstName
-                      }{' '}
-                      {
-                        order.device.client
-                          .lastName
-                      }
-                    </small>
                   </div>
 
                   <span
@@ -328,11 +409,11 @@ export function DashboardPanel() {
                     }
                   </span>
                 </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </>
+              ),
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

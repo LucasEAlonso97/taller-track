@@ -25,6 +25,8 @@ import type {
   UpdateClientInput,
 } from './types/client';
 
+import type { RepairFilter } from './types/repair-filter';
+
 type ActiveSection =
   | 'dashboard'
   | 'clients'
@@ -43,10 +45,16 @@ function App() {
   const [activeSection, setActiveSection] =
     useState<ActiveSection>('dashboard');
 
-  const [clients, setClients] = useState<Client[]>([]);
+  const [repairFilter, setRepairFilter] =
+    useState<RepairFilter>('ALL');
+
+  const [clients, setClients] =
+    useState<Client[]>([]);
 
   const [form, setForm] =
-    useState<CreateClientInput>(initialForm);
+    useState<CreateClientInput>(
+      initialForm,
+    );
 
   const [selectedClient, setSelectedClient] =
     useState<Client | null>(null);
@@ -54,15 +62,20 @@ function App() {
   const [editForm, setEditForm] =
     useState<UpdateClientInput>({});
 
-  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearch, setClientSearch] =
+    useState('');
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
 
   const [loadingDetail, setLoadingDetail] =
     useState(false);
 
-  const [updating, setUpdating] = useState(false);
+  const [updating, setUpdating] =
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -95,23 +108,24 @@ function App() {
     });
   }, [clients, clientSearch]);
 
-  const loadClients = async (): Promise<void> => {
-    try {
-      setError(null);
+  const loadClients =
+    async (): Promise<void> => {
+      try {
+        setError(null);
 
-      const data = await getClients();
+        const data = await getClients();
 
-      setClients(data);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudieron cargar los clientes.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setClients(data);
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudieron cargar los clientes.',
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     void loadClients();
@@ -139,11 +153,16 @@ function App() {
       setSaving(true);
       setError(null);
 
-      const newClient = await createClient({
-        ...form,
-        email: form.email || undefined,
-        notes: form.notes || undefined,
-      });
+      const newClient =
+        await createClient({
+          ...form,
+          email:
+            form.email ||
+            undefined,
+          notes:
+            form.notes ||
+            undefined,
+        });
 
       setClients((current) => [
         newClient,
@@ -169,7 +188,8 @@ function App() {
       setLoadingDetail(true);
       setError(null);
 
-      const client = await getClientById(id);
+      const client =
+        await getClientById(id);
 
       setSelectedClient(client);
 
@@ -196,7 +216,8 @@ function App() {
       HTMLInputElement | HTMLTextAreaElement
     >,
   ): void => {
-    const { name, value } = event.target;
+    const { name, value } =
+      event.target;
 
     setEditForm((current) => ({
       ...current,
@@ -217,20 +238,28 @@ function App() {
       setUpdating(true);
       setError(null);
 
-      const updatedClient = await updateClient(
-        selectedClient.id,
-        {
-          ...editForm,
-          email: editForm.email || undefined,
-          notes: editForm.notes || undefined,
-        },
-      );
+      const updatedClient =
+        await updateClient(
+          selectedClient.id,
+          {
+            ...editForm,
+            email:
+              editForm.email ||
+              undefined,
+            notes:
+              editForm.notes ||
+              undefined,
+          },
+        );
 
-      setSelectedClient(updatedClient);
+      setSelectedClient(
+        updatedClient,
+      );
 
       setClients((current) =>
         current.map((client) =>
-          client.id === updatedClient.id
+          client.id ===
+          updatedClient.id
             ? updatedClient
             : client,
         ),
@@ -246,15 +275,29 @@ function App() {
     }
   };
 
-  const handleCloseDetail = (): void => {
-    setSelectedClient(null);
-    setEditForm({});
-  };
+  const handleCloseDetail =
+    (): void => {
+      setSelectedClient(null);
+      setEditForm({});
+    };
 
   const handleSectionChange = (
     section: ActiveSection,
   ): void => {
+    if (section === 'repairs') {
+      setRepairFilter('ALL');
+    }
+
     setActiveSection(section);
+    setError(null);
+    setSelectedClient(null);
+  };
+
+  const handleOpenRepairs = (
+    filter: RepairFilter,
+  ): void => {
+    setRepairFilter(filter);
+    setActiveSection('repairs');
     setError(null);
     setSelectedClient(null);
   };
@@ -267,19 +310,24 @@ function App() {
             TallerTrack
           </p>
 
-          <h1>Gestión del taller</h1>
+          <h1>
+            Gestión del taller
+          </h1>
         </div>
 
         <nav>
           <button
             className={`nav-item ${
-              activeSection === 'dashboard'
+              activeSection ===
+              'dashboard'
                 ? 'active'
                 : ''
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('dashboard')
+              handleSectionChange(
+                'dashboard',
+              )
             }
           >
             Inicio
@@ -287,13 +335,16 @@ function App() {
 
           <button
             className={`nav-item ${
-              activeSection === 'clients'
+              activeSection ===
+              'clients'
                 ? 'active'
                 : ''
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('clients')
+              handleSectionChange(
+                'clients',
+              )
             }
           >
             Clientes
@@ -301,13 +352,16 @@ function App() {
 
           <button
             className={`nav-item ${
-              activeSection === 'devices'
+              activeSection ===
+              'devices'
                 ? 'active'
                 : ''
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('devices')
+              handleSectionChange(
+                'devices',
+              )
             }
           >
             Equipos
@@ -315,13 +369,16 @@ function App() {
 
           <button
             className={`nav-item ${
-              activeSection === 'repairs'
+              activeSection ===
+              'repairs'
                 ? 'active'
                 : ''
             }`}
             type="button"
             onClick={() =>
-              handleSectionChange('repairs')
+              handleSectionChange(
+                'repairs',
+              )
             }
           >
             Reparaciones
@@ -330,11 +387,17 @@ function App() {
       </aside>
 
       <main className="content">
-        {activeSection === 'dashboard' && (
-          <DashboardPanel />
+        {activeSection ===
+          'dashboard' && (
+          <DashboardPanel
+            onOpenRepairs={
+              handleOpenRepairs
+            }
+          />
         )}
 
-        {activeSection === 'clients' && (
+        {activeSection ===
+          'clients' && (
           <>
             <header className="page-header">
               <div>
@@ -347,8 +410,9 @@ function App() {
                 </h2>
 
                 <p>
-                  Registrá, consultá y editá los
-                  clientes del taller.
+                  Registrá, consultá y
+                  editá los clientes del
+                  taller.
                 </p>
               </div>
 
@@ -357,7 +421,9 @@ function App() {
                   {clients.length}
                 </strong>
 
-                <span>clientes</span>
+                <span>
+                  clientes
+                </span>
               </div>
             </header>
 
@@ -383,7 +449,9 @@ function App() {
 
                 <form
                   className="client-form"
-                  onSubmit={handleSubmit}
+                  onSubmit={
+                    handleSubmit
+                  }
                 >
                   <div className="form-row">
                     <label>
@@ -392,8 +460,12 @@ function App() {
                       <input
                         type="text"
                         name="firstName"
-                        value={form.firstName}
-                        onChange={handleChange}
+                        value={
+                          form.firstName
+                        }
+                        onChange={
+                          handleChange
+                        }
                         required
                         minLength={2}
                       />
@@ -405,8 +477,12 @@ function App() {
                       <input
                         type="text"
                         name="lastName"
-                        value={form.lastName}
-                        onChange={handleChange}
+                        value={
+                          form.lastName
+                        }
+                        onChange={
+                          handleChange
+                        }
                         required
                         minLength={2}
                       />
@@ -419,8 +495,12 @@ function App() {
                     <input
                       type="text"
                       name="phone"
-                      value={form.phone}
-                      onChange={handleChange}
+                      value={
+                        form.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
                       required
                       minLength={6}
                     />
@@ -432,8 +512,12 @@ function App() {
                     <input
                       type="email"
                       name="email"
-                      value={form.email}
-                      onChange={handleChange}
+                      value={
+                        form.email
+                      }
+                      onChange={
+                        handleChange
+                      }
                     />
                   </label>
 
@@ -442,8 +526,12 @@ function App() {
 
                     <textarea
                       name="notes"
-                      value={form.notes}
-                      onChange={handleChange}
+                      value={
+                        form.notes
+                      }
+                      onChange={
+                        handleChange
+                      }
                       rows={4}
                     />
                   </label>
@@ -451,7 +539,9 @@ function App() {
                   <button
                     className="primary-button"
                     type="submit"
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                   >
                     {saving
                       ? 'Guardando...'
@@ -474,10 +564,15 @@ function App() {
                 </div>
 
                 {!loading &&
-                  clients.length > 0 && (
+                  clients.length >
+                    0 && (
                     <SearchInput
-                      value={clientSearch}
-                      onChange={setClientSearch}
+                      value={
+                        clientSearch
+                      }
+                      onChange={
+                        setClientSearch
+                      }
                       placeholder="Buscar por nombre, teléfono o email..."
                     />
                   )}
@@ -489,20 +584,24 @@ function App() {
                 )}
 
                 {!loading &&
-                  clients.length === 0 && (
+                  clients.length ===
+                    0 && (
                     <p className="empty-state">
-                      Todavía no hay clientes
+                      Todavía no hay
+                      clientes
                       registrados.
                     </p>
                   )}
 
                 {!loading &&
-                  clients.length > 0 &&
+                  clients.length >
+                    0 &&
                   filteredClients.length ===
                     0 && (
                     <p className="empty-state">
-                      No encontramos clientes para
-                      "{clientSearch}".
+                      No encontramos
+                      clientes para "
+                      {clientSearch}".
                     </p>
                   )}
 
@@ -514,31 +613,44 @@ function App() {
                         (client) => (
                           <article
                             className="client-card"
-                            key={client.id}
+                            key={
+                              client.id
+                            }
                           >
                             <div className="client-avatar">
                               {client.firstName
-                                .charAt(0)
+                                .charAt(
+                                  0,
+                                )
                                 .toUpperCase()}
-
                               {client.lastName
-                                .charAt(0)
+                                .charAt(
+                                  0,
+                                )
                                 .toUpperCase()}
                             </div>
 
                             <div className="client-info">
                               <strong>
-                                {client.firstName}{' '}
-                                {client.lastName}
+                                {
+                                  client.firstName
+                                }{' '}
+                                {
+                                  client.lastName
+                                }
                               </strong>
 
                               <span>
-                                {client.phone}
+                                {
+                                  client.phone
+                                }
                               </span>
 
                               {client.email && (
                                 <span>
-                                  {client.email}
+                                  {
+                                    client.email
+                                  }
                                 </span>
                               )}
                             </div>
@@ -576,12 +688,17 @@ function App() {
                   <div className="detail-header">
                     <div>
                       <span className="panel-label">
-                        Detalle del cliente
+                        Detalle del
+                        cliente
                       </span>
 
                       <h3>
-                        {selectedClient.firstName}{' '}
-                        {selectedClient.lastName}
+                        {
+                          selectedClient.firstName
+                        }{' '}
+                        {
+                          selectedClient.lastName
+                        }
                       </h3>
                     </div>
 
@@ -617,7 +734,9 @@ function App() {
                             handleEditChange
                           }
                           required
-                          minLength={2}
+                          minLength={
+                            2
+                          }
                         />
                       </label>
 
@@ -635,7 +754,9 @@ function App() {
                             handleEditChange
                           }
                           required
-                          minLength={2}
+                          minLength={
+                            2
+                          }
                         />
                       </label>
                     </div>
@@ -647,13 +768,16 @@ function App() {
                         type="text"
                         name="phone"
                         value={
-                          editForm.phone ?? ''
+                          editForm.phone ??
+                          ''
                         }
                         onChange={
                           handleEditChange
                         }
                         required
-                        minLength={6}
+                        minLength={
+                          6
+                        }
                       />
                     </label>
 
@@ -664,7 +788,8 @@ function App() {
                         type="email"
                         name="email"
                         value={
-                          editForm.email ?? ''
+                          editForm.email ??
+                          ''
                         }
                         onChange={
                           handleEditChange
@@ -678,7 +803,8 @@ function App() {
                       <textarea
                         name="notes"
                         value={
-                          editForm.notes ?? ''
+                          editForm.notes ??
+                          ''
                         }
                         onChange={
                           handleEditChange
@@ -690,7 +816,9 @@ function App() {
                     <button
                       className="primary-button"
                       type="submit"
-                      disabled={updating}
+                      disabled={
+                        updating
+                      }
                     >
                       {updating
                         ? 'Guardando cambios...'
@@ -702,12 +830,18 @@ function App() {
           </>
         )}
 
-        {activeSection === 'devices' && (
+        {activeSection ===
+          'devices' && (
           <DevicesPanel />
         )}
 
-        {activeSection === 'repairs' && (
-          <RepairOrdersPanel />
+        {activeSection ===
+          'repairs' && (
+          <RepairOrdersPanel
+            initialFilter={
+              repairFilter
+            }
+          />
         )}
       </main>
     </div>
