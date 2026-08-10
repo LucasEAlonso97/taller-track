@@ -1353,3 +1353,124 @@
     flex-direction: column;
   }
 }
+
+.dashboard-attention-section,
+.dashboard-recent-section {
+  margin-top: 28px;
+}
+
+.dashboard-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.dashboard-section-header h2 {
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: 20px;
+}
+
+.dashboard-section-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.dashboard-eyebrow {
+  color: #7b1730;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.dashboard-attention-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.attention-card {
+  min-height: 135px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.attention-card > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attention-card strong {
+  color: #111827;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.attention-card-label {
+  max-width: 130px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.attention-card-description {
+  display: block;
+  margin-top: 28px;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.attention-card-warning {
+  border-color: #f4c7c3;
+}
+
+@media (max-width: 1000px) {
+  .dashboard-attention-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-attention-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.attention-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.attention-card:hover {
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.attention-card:focus-visible {
+  outline: 2px solid #7b1730;
+  outline-offset: 2px;
+}

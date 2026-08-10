@@ -29,7 +29,7 @@ import type {
   RepairStatus,
 } from '../types/repair-order';
 
-type StatusFilter = 'ALL' | RepairStatus;
+import type { RepairFilter } from '../types/repair-filter';
 
 const initialForm: CreateRepairOrderInput = {
   deviceId: '',
@@ -66,7 +66,13 @@ const statuses = Object.keys(
   statusLabels,
 ) as RepairStatus[];
 
-export function RepairOrdersPanel() {
+interface RepairOrdersPanelProps {
+  initialFilter?: RepairFilter;
+}
+
+export function RepairOrdersPanel({
+  initialFilter = 'ALL',
+}: RepairOrdersPanelProps) {
   const [orders, setOrders] =
     useState<RepairOrder[]>([]);
 
@@ -79,7 +85,7 @@ export function RepairOrdersPanel() {
     );
 
   const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>('ALL');
+    useState<RepairFilter>(initialFilter);
 
   const [search, setSearch] = useState('');
 
@@ -172,17 +178,69 @@ export function RepairOrdersPanel() {
     void loadData();
   }, []);
 
+  useEffect(() => {
+    setStatusFilter(initialFilter);
+  }, [initialFilter]);
+
   const filteredOrders = useMemo(() => {
     const query = search
       .trim()
       .toLowerCase();
 
-    return orders.filter((order) => {
-      const matchesStatus =
-        statusFilter === 'ALL' ||
-        order.status === statusFilter;
+    const now = Date.now();
 
-      if (!matchesStatus) {
+    const threeDaysInMilliseconds =
+      3 * 24 * 60 * 60 * 1000;
+
+    const closedStatuses: RepairStatus[] = [
+      'DELIVERED',
+      'CANCELLED',
+      'UNREPAIRED',
+    ];
+
+    return orders.filter((order) => {
+      let matchesFilter = true;
+
+      if (statusFilter === 'OVERDUE') {
+        const isActive =
+          !closedStatuses.includes(
+            order.status,
+          );
+
+        const isOverdue =
+          order.estimatedCompletionDate !==
+            null &&
+          new Date(
+            order.estimatedCompletionDate,
+          ).getTime() < now;
+
+        matchesFilter =
+          isActive && isOverdue;
+      } else if (
+        statusFilter === 'STALE'
+      ) {
+        const isActive =
+          !closedStatuses.includes(
+            order.status,
+          );
+
+        const lastUpdate =
+          new Date(
+            order.updatedAt,
+          ).getTime();
+
+        matchesFilter =
+          isActive &&
+          now - lastUpdate >=
+            threeDaysInMilliseconds;
+      } else if (
+        statusFilter !== 'ALL'
+      ) {
+        matchesFilter =
+          order.status === statusFilter;
+      }
+
+      if (!matchesFilter) {
         return false;
       }
 
@@ -649,7 +707,7 @@ export function RepairOrdersPanel() {
               onChange={(event) =>
                 setStatusFilter(
                   event.target
-                    .value as StatusFilter,
+                    .value as RepairFilter,
                 )
               }
             >
@@ -671,6 +729,14 @@ export function RepairOrdersPanel() {
                   </option>
                 ),
               )}
+
+              <option value="OVERDUE">
+                Reparaciones atrasadas
+              </option>
+
+              <option value="STALE">
+                Sin actualizar +3 días
+              </option>
             </select>
           </div>
 
