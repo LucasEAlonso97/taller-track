@@ -117,6 +117,31 @@ export async function updateRepairDiagnosis(
   return response.json() as Promise<RepairOrder>;
 }
 
+export async function addRepairInternalNote(
+  repairOrderId: string,
+  content: string,
+): Promise<RepairOrder> {
+  const response = await fetch(
+    `${API_URL}/repair-orders/${repairOrderId}/notes`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      'No se pudo agregar la nota interna.',
+    );
+  }
+
+  return response.json() as Promise<RepairOrder>;
+}
 export interface UpdateRepairQuoteInput {
   amount: number;
   description?: string;

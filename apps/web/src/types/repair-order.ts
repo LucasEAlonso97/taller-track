@@ -45,6 +45,7 @@ export interface RepairOrder {
   createdAt: string;
   updatedAt: string;
   trackingToken: string;
+  internalNotes: RepairInternalNote[];
 
   device: Device;
   statusHistory: RepairStatusHistory[];
@@ -55,4 +56,11 @@ export interface CreateRepairOrderInput {
   deviceId: string;
   reportedIssue: string;
   estimatedCompletionDate?: string;
+}
+
+export interface RepairInternalNote {
+  id: string;
+  content: string;
+  repairOrderId: string;
+  createdAt: string;
 }

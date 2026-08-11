@@ -13,6 +13,7 @@ import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
 import { UpdateRepairQuoteDto } from './dto/update-repair-quote.dto';
 import { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
+import { CreateRepairNoteDto } from './dto/create-repair-note.dto';
 
 import { RepairOrdersService } from './repair-orders.service';
 
@@ -101,4 +102,17 @@ export class RepairOrdersController {
       updateQuoteStatusDto,
     );
   }
+  @Post(':id/notes')
+addInternalNote(
+  @Param('id', new ParseUUIDPipe())
+  id: string,
+
+  @Body()
+  body: CreateRepairNoteDto,
+) {
+  return this.repairOrdersService.addInternalNote(
+    id,
+    body.content,
+  );
+}
 }

@@ -38,6 +38,12 @@ export class RepairOrdersService {
       },
     },
 
+    internalNotes: {
+  orderBy: {
+    createdAt: 'desc' as const,
+  },
+},
+
     statusHistory: {
       orderBy: {
         createdAt: 'asc' as const,
@@ -194,6 +200,43 @@ export class RepairOrdersService {
       });
     });
   }
+
+  async addInternalNote(
+  repairOrderId: string,
+  content: string,
+) {
+  const repairOrder =
+    await this.prisma.repairOrder.findUnique({
+      where: {
+        id: repairOrderId,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+  if (!repairOrder) {
+    throw new NotFoundException(
+      'No se encontró la orden de reparación',
+    );
+  }
+
+  await this.prisma.repairInternalNote.create({
+    data: {
+      repairOrderId,
+      content: content.trim(),
+    },
+  });
+
+  return this.prisma.repairOrder.findUnique({
+    where: {
+      id: repairOrderId,
+    },
+
+    include: this.fullOrderInclude,
+  });
+}
 
   async updateDiagnosis(
     id: string,
