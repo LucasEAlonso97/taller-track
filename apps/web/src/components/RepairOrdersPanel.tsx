@@ -9,6 +9,7 @@ import {
 import { RepairReceipt } from './RepairReceipt';
 import { SearchInput } from './SearchInput';
 import { TrackingShareActions } from './TrackingShareActions';
+import { RepairInternalNotes } from './RepairInternalNotes';
 
 import { getDevices } from '../services/devices';
 
@@ -265,6 +266,7 @@ export function RepairOrdersPanel({
           ?.toLowerCase()
           .includes(query) ?? false;
 
+
       return (
         order.code
           .toLowerCase()
@@ -285,6 +287,18 @@ export function RepairOrdersPanel({
     statusFilter,
     search,
   ]);
+
+  const handleOrderUpdated = (
+    updatedOrder: RepairOrder,
+  ): void => {
+    setOrders((currentOrders) =>
+      currentOrders.map((order) =>
+        order.id === updatedOrder.id
+          ? updatedOrder
+          : order,
+      ),
+    );
+  };
 
   const handleChange = (
     event: ChangeEvent<
@@ -1196,6 +1210,14 @@ export function RepairOrdersPanel({
                             </p>
                           )}
                         </div>
+
+                        <RepairInternalNotes
+                          repairOrderId={order.id}
+                          notes={order.internalNotes}
+                          onOrderUpdated={
+                            handleOrderUpdated
+                          }
+                        />
 
                         {order.estimatedCompletionDate && (
                           <p className="repair-estimated">
