@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 
+import { RepairReceipt } from './RepairReceipt';
 import { SearchInput } from './SearchInput';
 import { TrackingShareActions } from './TrackingShareActions';
 
@@ -147,6 +148,11 @@ export function RepairOrdersPanel({
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [
+    receiptOrder,
+    setReceiptOrder,
+  ] = useState<RepairOrder | null>(null);
 
   useEffect(() => {
     const loadData =
@@ -1358,13 +1364,29 @@ export function RepairOrdersPanel({
                             </div>
                           )}
                           <TrackingShareActions
-  trackingToken={order.trackingToken}
-  orderCode={order.code}
-  clientPhone={order.device.client.phone}
-  deviceName={`${order.device.brand} ${order.device.model}`}
-  status={order.status}
-  quoteAmount={order.quote?.amount}
-/>
+                            trackingToken={
+                              order.trackingToken
+                            }
+                            orderCode={order.code}
+                            clientPhone={
+                              order.device.client.phone
+                            }
+                            deviceName={`${order.device.brand} ${order.device.model}`}
+                            status={order.status}
+                            quoteAmount={
+                              order.quote?.amount
+                            }
+                          />
+
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() =>
+                              setReceiptOrder(order)
+                            }
+                          >
+                            Comprobante
+                          </button>
                         </div>
                       </article>
                     );
@@ -1378,6 +1400,14 @@ export function RepairOrdersPanel({
         </section>
         
       </div>
+      {receiptOrder && (
+        <RepairReceipt
+          order={receiptOrder}
+          onClose={() =>
+            setReceiptOrder(null)
+          }
+        />
+      )}
     </>
   );
 }
