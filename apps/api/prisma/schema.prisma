@@ -71,6 +71,7 @@ model RepairOrder {
 
   device        Device                @relation(fields: [deviceId], references: [id], onDelete: Restrict)
   statusHistory RepairStatusHistory[]
+  internalNotes RepairInternalNote[]
   quote         RepairQuote?
 
   @@index([deviceId])
@@ -100,4 +101,16 @@ model RepairQuote {
   updatedAt     DateTime    @updatedAt
 
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+}
+
+model RepairInternalNote {
+  id            String   @id @default(uuid()) @db.Uuid
+  content       String
+  repairOrderId String   @db.Uuid
+  createdAt     DateTime @default(now())
+
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@index([repairOrderId])
+  @@index([createdAt])
 }
