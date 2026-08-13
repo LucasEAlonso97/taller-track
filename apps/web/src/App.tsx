@@ -12,6 +12,7 @@ import { DevicesPanel } from './components/DevicesPanel';
 import { RepairOrdersPanel } from './components/RepairOrdersPanel';
 import { SearchInput } from './components/SearchInput';
 import { clearSession } from './services/auth-storage';
+import { UsersPanel } from './components/UsersPanel';
 
 
 import {
@@ -43,7 +44,8 @@ type ActiveSection =
   | 'dashboard'
   | 'clients'
   | 'devices'
-  | 'repairs';
+  | 'repairs'
+  | 'users';
 
 const initialForm: CreateClientInput = {
   firstName: '',
@@ -434,6 +436,22 @@ useEffect(() => {
           >
             Reparaciones
           </button>
+
+          {currentUser.role === 'ADMIN' && (
+  <button
+    type="button"
+    className={
+      activeSection === 'users'
+        ? 'nav-item active'
+        : 'nav-item'
+    }
+    onClick={() =>
+      handleSectionChange('users')
+    }
+  >
+    Usuarios
+  </button>
+)}
         </nav>
           <div className="sidebar-user">
     <div>
@@ -464,6 +482,7 @@ useEffect(() => {
             }
           />
         )}
+        
 
         {activeSection ===
           'clients' && (
@@ -912,6 +931,11 @@ useEffect(() => {
             }
           />
         )}
+
+        {activeSection === 'users' &&
+  currentUser.role === 'ADMIN' && (
+    <UsersPanel />
+  )}
       </main>
     </div>
   );
