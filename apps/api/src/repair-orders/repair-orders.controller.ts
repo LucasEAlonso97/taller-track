@@ -6,6 +6,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UploadedFiles,
+UseInterceptors,
+StreamableFile,
+NotFoundException,
 } from '@nestjs/common';
 
 import { CreateRepairOrderDto } from './dto/create-repair-order.dto';
@@ -14,6 +18,16 @@ import { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
 import { UpdateRepairQuoteDto } from './dto/update-repair-quote.dto';
 import { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
 import { CreateRepairNoteDto } from './dto/create-repair-note.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  createReadStream,
+  existsSync,
+} from 'fs';
+
+import { join } from 'path';
+
+
+import { repairPhotoUploadOptions } from './repair-photo-upload.config';
 
 import { RepairOrdersService } from './repair-orders.service';
 
@@ -113,6 +127,62 @@ addInternalNote(
   return this.repairOrdersService.addInternalNote(
     id,
     body.content,
+  );
+}
+@Post(':id/photos')
+@UseInterceptors(
+  FilesInterceptor(
+    'files',
+    6,
+    repairPhotoUploadOptions,
+  ),
+)
+addPhotos(
+  @Param('id', new ParseUUIDPipe())
+  id: string,
+
+  @UploadedFiles()
+  files: Express.Multer.File[],
+) {
+  return this.repairOrdersService.addPhotos(
+    id,
+    files,
+  );
+}
+
+@Get(':id/photos/:photoId/file')
+async getPhotoFile(
+  @Param('id', new ParseUUIDPipe())
+  id: string,
+
+  @Param('photoId', new ParseUUIDPipe())
+  photoId: string,
+): Promise<StreamableFile> {
+  const photo =
+    await this.repairOrdersService.getPhoto(
+      id,
+      photoId,
+    );
+
+  const filePath = join(
+    process.cwd(),
+    'uploads',
+    'repair-photos',
+    photo.storageKey,
+  );
+
+  if (!existsSync(filePath)) {
+    throw new NotFoundException(
+      'El archivo de la foto no existe',
+    );
+  }
+
+  return new StreamableFile(
+    createReadStream(filePath),
+    {
+      type: photo.mimeType,
+      disposition: 'inline',
+    },
   );
 }
 }

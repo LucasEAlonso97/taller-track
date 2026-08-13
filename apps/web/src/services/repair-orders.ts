@@ -147,6 +147,44 @@ export interface UpdateRepairQuoteInput {
   description?: string;
 }
 
+export async function addRepairPhotos(
+  repairOrderId: string,
+  files: File[],
+): Promise<RepairOrder> {
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch(
+    `${API_URL}/repair-orders/${repairOrderId}/photos`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response
+      .json()
+      .catch(() => null);
+
+    throw new Error(
+      errorBody?.message ??
+        'No se pudieron subir las fotos.',
+    );
+  }
+
+  return response.json() as Promise<RepairOrder>;
+}
+
+export function getRepairPhotoUrl(
+  repairOrderId: string,
+  photoId: string,
+): string {
+  return `${API_URL}/repair-orders/${repairOrderId}/photos/${photoId}/file`;
+}
 export async function updateRepairQuote(
   id: string,
   input: UpdateRepairQuoteInput,
