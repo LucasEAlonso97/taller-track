@@ -7,8 +7,10 @@ import type {
 const API_URL =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
+  import { apiFetch } from './api';
+
 export async function getClients(): Promise<Client[]> {
-  const response = await fetch(`${API_URL}/clients`);
+ const response = await apiFetch(`${API_URL}/clients`);
 
   if (!response.ok) {
     throw new Error('No se pudieron obtener los clientes');
@@ -20,7 +22,7 @@ export async function getClients(): Promise<Client[]> {
 export async function getClientById(
   id: string,
 ): Promise<Client> {
-  const response = await fetch(`${API_URL}/clients/${id}`);
+  const response = await apiFetch(`${API_URL}/clients/${id}`);
 
   if (!response.ok) {
     throw new Error('No se pudo obtener el cliente');
@@ -32,7 +34,7 @@ export async function getClientById(
 export async function createClient(
   client: CreateClientInput,
 ): Promise<Client> {
-  const response = await fetch(`${API_URL}/clients`, {
+  const response = await apiFetch(`${API_URL}/clients`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -61,7 +63,7 @@ export async function updateClient(
   id: string,
   client: UpdateClientInput,
 ): Promise<Client> {
-  const response = await fetch(`${API_URL}/clients/${id}`, {
+  const response = await apiFetch(`${API_URL}/clients/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
