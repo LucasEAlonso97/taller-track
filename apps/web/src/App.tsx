@@ -11,6 +11,9 @@ import { DashboardPanel } from './components/DashboardPanel';
 import { DevicesPanel } from './components/DevicesPanel';
 import { RepairOrdersPanel } from './components/RepairOrdersPanel';
 import { SearchInput } from './components/SearchInput';
+import { clearSession } from './services/auth-storage';
+import { UsersPanel } from './components/UsersPanel';
+
 
 import {
   createClient,
@@ -18,6 +21,16 @@ import {
   getClients,
   updateClient,
 } from './services/clients';
+
+import { LoginPage } from './components/LoginPage';
+
+import {
+  getStoredUser,
+} from './services/auth-storage';
+
+import type {
+  AuthUser,
+} from './types/auth';
 
 import type {
   Client,
@@ -31,7 +44,8 @@ type ActiveSection =
   | 'dashboard'
   | 'clients'
   | 'devices'
-  | 'repairs';
+  | 'repairs'
+  | 'users';
 
 const initialForm: CreateClientInput = {
   firstName: '',
@@ -44,6 +58,36 @@ const initialForm: CreateClientInput = {
 function App() {
   const [activeSection, setActiveSection] =
     useState<ActiveSection>('dashboard');
+
+    const [
+  currentUser,
+  setCurrentUser,
+] = useState<AuthUser | null>(
+  () => getStoredUser(),
+);
+
+const handleLogout = (): void => {
+  clearSession();
+  setCurrentUser(null);
+};
+
+useEffect(() => {
+  const handleUnauthorized = (): void => {
+    setCurrentUser(null);
+  };
+
+  window.addEventListener(
+    'auth:unauthorized',
+    handleUnauthorized,
+  );
+
+  return () => {
+    window.removeEventListener(
+      'auth:unauthorized',
+      handleUnauthorized,
+    );
+  };
+}, []);
 
   const [repairFilter, setRepairFilter] =
     useState<RepairFilter>('ALL');
@@ -130,6 +174,8 @@ function App() {
   useEffect(() => {
     void loadClients();
   }, []);
+
+  
 
   const handleChange = (
     event: ChangeEvent<
@@ -301,6 +347,13 @@ function App() {
     setError(null);
     setSelectedClient(null);
   };
+  if (!currentUser) {
+  return (
+    <LoginPage
+      onLogin={setCurrentUser}
+    />
+  );
+}
 
   return (
     <div className="app-shell">
@@ -383,7 +436,41 @@ function App() {
           >
             Reparaciones
           </button>
+
+          {currentUser.role === 'ADMIN' && (
+  <button
+    type="button"
+    className={
+      activeSection === 'users'
+        ? 'nav-item active'
+        : 'nav-item'
+    }
+    onClick={() =>
+      handleSectionChange('users')
+    }
+  >
+    Usuarios
+  </button>
+)}
         </nav>
+          <div className="sidebar-user">
+    <div>
+      <strong>{currentUser.name}</strong>
+      <span>
+        {currentUser.role === 'ADMIN'
+          ? 'Administrador'
+          : 'Técnico'}
+      </span>
+    </div>
+
+    <button
+      type="button"
+      className="sidebar-logout"
+      onClick={handleLogout}
+    >
+      Cerrar sesión
+    </button>
+  </div>
       </aside>
 
       <main className="content">
@@ -395,6 +482,7 @@ function App() {
             }
           />
         )}
+        
 
         {activeSection ===
           'clients' && (
@@ -843,6 +931,11 @@ function App() {
             }
           />
         )}
+
+        {activeSection === 'users' &&
+  currentUser.role === 'ADMIN' && (
+    <UsersPanel />
+  )}
       </main>
     </div>
   );

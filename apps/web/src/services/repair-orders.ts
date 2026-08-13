@@ -5,13 +5,15 @@ import type {
   RepairStatus,
 } from '../types/repair-order';
 
+import { apiFetch } from './api';
+
 
 
 const API_URL =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 export async function getRepairOrders(): Promise<RepairOrder[]> {
-  const response = await fetch(`${API_URL}/repair-orders`);
+  const response = await apiFetch(`${API_URL}/repair-orders`);
 
   if (!response.ok) {
     throw new Error('No se pudieron obtener las reparaciones');
@@ -23,7 +25,7 @@ export async function getRepairOrders(): Promise<RepairOrder[]> {
 export async function createRepairOrder(
   input: CreateRepairOrderInput,
 ): Promise<RepairOrder> {
-  const response = await fetch(`${API_URL}/repair-orders`, {
+  const response = await apiFetch(`${API_URL}/repair-orders`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -52,7 +54,7 @@ export async function updateRepairOrderStatus(
   id: string,
   status: RepairStatus,
 ): Promise<RepairOrder> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${id}/status`,
     {
       method: 'PATCH',
@@ -89,7 +91,7 @@ export async function updateRepairDiagnosis(
   id: string,
   input: UpdateRepairDiagnosisInput,
 ): Promise<RepairOrder> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${id}/diagnosis`,
     {
       method: 'PATCH',
@@ -121,7 +123,7 @@ export async function addRepairInternalNote(
   repairOrderId: string,
   content: string,
 ): Promise<RepairOrder> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${repairOrderId}/notes`,
     {
       method: 'POST',
@@ -157,7 +159,7 @@ export async function addRepairPhotos(
     formData.append('files', file);
   });
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${repairOrderId}/photos`,
     {
       method: 'POST',
@@ -189,7 +191,7 @@ export async function updateRepairQuote(
   id: string,
   input: UpdateRepairQuoteInput,
 ): Promise<RepairOrder> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${id}/quote`,
     {
       method: 'PATCH',
@@ -221,7 +223,7 @@ export async function updateRepairQuoteStatus(
   id: string,
   status: QuoteStatus,
 ): Promise<RepairOrder> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/repair-orders/${id}/quote/status`,
     {
       method: 'PATCH',

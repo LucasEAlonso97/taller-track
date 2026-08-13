@@ -3,6 +3,8 @@ import {
   useState,
 } from 'react';
 
+import { AuthenticatedImage } from './AuthenticatedImage';
+
 import {
   addRepairPhotos,
   getRepairPhotoUrl,
@@ -111,30 +113,23 @@ export function RepairPhotos({
       {photos.length > 0 ? (
         <div className="repair-photo-grid">
           {photos.map((photo) => (
-            <a
+            <div
               key={photo.id}
               className="repair-photo-item"
-              href={getRepairPhotoUrl(
-                repairOrderId,
-                photo.id,
-              )}
-              target="_blank"
-              rel="noreferrer"
               title={photo.originalName}
             >
-              <img
+              <AuthenticatedImage
                 src={getRepairPhotoUrl(
                   repairOrderId,
                   photo.id,
                 )}
                 alt={photo.originalName}
-                loading="lazy"
               />
 
               <span>
                 {photo.originalName}
               </span>
-            </a>
+            </div>
           ))}
         </div>
       ) : (

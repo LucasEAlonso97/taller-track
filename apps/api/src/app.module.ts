@@ -7,6 +7,8 @@ import { PrismaModule } from './database/prisma.module';
 import { DevicesModule } from './devices/devices.module';
 import { RepairOrdersModule } from './repair-orders/repair-orders.module';
 import { TrackingModule } from './tracking/tracking.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { TrackingModule } from './tracking/tracking.module';
     DevicesModule,
     RepairOrdersModule,
     TrackingModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
