@@ -1,5 +1,15 @@
 import type { Device } from './device';
 
+export interface RepairPhoto {
+  id: string;
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  repairOrderId: string;
+  createdAt: string;
+}
+
 export type RepairStatus =
   | 'RECEIVED'
   | 'IN_DIAGNOSIS'
@@ -50,6 +60,7 @@ export interface RepairOrder {
   device: Device;
   statusHistory: RepairStatusHistory[];
   quote: RepairQuote | null;
+  photos: RepairPhoto[];
 }
 
 export interface CreateRepairOrderInput {

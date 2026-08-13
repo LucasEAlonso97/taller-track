@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
@@ -44,6 +45,11 @@ export class RepairOrdersService {
   },
 },
 
+photos: {
+  orderBy: {
+    createdAt: 'desc' as const,
+  },
+},
     statusHistory: {
       orderBy: {
         createdAt: 'asc' as const,
@@ -52,6 +58,27 @@ export class RepairOrdersService {
 
     quote: true,
   };
+
+  async getPhoto(
+  repairOrderId: string,
+  photoId: string,
+) {
+  const photo =
+    await this.prisma.repairPhoto.findFirst({
+      where: {
+        id: photoId,
+        repairOrderId,
+      },
+    });
+
+  if (!photo) {
+    throw new NotFoundException(
+      'No se encontró la foto de la reparación',
+    );
+  }
+
+  return photo;
+}
 
   async create(
     createRepairOrderDto: CreateRepairOrderDto,
@@ -122,6 +149,68 @@ export class RepairOrdersService {
       },
     });
   }
+
+  async addPhotos(
+  repairOrderId: string,
+  files: Express.Multer.File[],
+) {
+  const repairOrder =
+    await this.prisma.repairOrder.findUnique({
+      where: {
+        id: repairOrderId,
+      },
+
+      select: {
+        id: true,
+
+        _count: {
+          select: {
+            photos: true,
+          },
+        },
+      },
+    });
+
+  if (!repairOrder) {
+    throw new NotFoundException(
+      'No se encontró la orden de reparación',
+    );
+  }
+
+  if (
+    repairOrder._count.photos +
+      files.length >
+    6
+  ) {
+    throw new BadRequestException(
+      'Una reparación puede tener como máximo 6 fotos.',
+    );
+  }
+
+  if (files.length === 0) {
+    throw new BadRequestException(
+      'Tenés que seleccionar al menos una foto.',
+    );
+  }
+
+  await this.prisma.repairPhoto.createMany({
+    data: files.map((file) => ({
+      repairOrderId,
+      storageKey: file.filename,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    })),
+  });
+
+  return this.prisma.repairOrder.findUnique({
+    where: {
+      id: repairOrderId,
+    },
+
+    include: this.fullOrderInclude,
+  });
+}
 
   async findOne(id: string) {
     const repairOrder =

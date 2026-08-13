@@ -10,6 +10,7 @@ import { RepairReceipt } from './RepairReceipt';
 import { SearchInput } from './SearchInput';
 import { TrackingShareActions } from './TrackingShareActions';
 import { RepairInternalNotes } from './RepairInternalNotes';
+import { RepairPhotos } from './RepairPhotos';
 
 import { getDevices } from '../services/devices';
 
@@ -1217,6 +1218,12 @@ export function RepairOrdersPanel({
                           onOrderUpdated={
                             handleOrderUpdated
                           }
+                        />
+
+                         <RepairPhotos
+                          repairOrderId={order.id}
+                          photos={order.photos}
+                           onOrderUpdated={handleOrderUpdated}
                         />
 
                         {order.estimatedCompletionDate && (
