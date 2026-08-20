@@ -1,8 +1,9 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+
 import { randomBytes } from 'node:crypto';
 
 import {
@@ -20,7 +21,9 @@ import type { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
 
 @Injectable()
 export class RepairOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   private generateCode(): string {
     const year = new Date().getFullYear();
@@ -39,55 +42,103 @@ export class RepairOrdersService {
       },
     },
 
-    internalNotes: {
-  orderBy: {
-    createdAt: 'desc' as const,
-  },
-},
+    diagnosisUpdatedBy: {
+      select: {
+        id: true,
+        name: true,
+        role: true,
+      },
+    },
 
-photos: {
-  orderBy: {
-    createdAt: 'desc' as const,
-  },
-},
+    internalNotes: {
+      orderBy: {
+        createdAt: 'desc' as const,
+      },
+
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+    },
+
+    photos: {
+      orderBy: {
+        createdAt: 'desc' as const,
+      },
+    },
+
     statusHistory: {
       orderBy: {
         createdAt: 'asc' as const,
       },
+
+      include: {
+        changedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
     },
 
-    quote: true,
+    quote: {
+      include: {
+        updatedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+
+        respondedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+    },
   };
 
   async getPhoto(
-  repairOrderId: string,
-  photoId: string,
-) {
-  const photo =
-    await this.prisma.repairPhoto.findFirst({
-      where: {
-        id: photoId,
-        repairOrderId,
-      },
-    });
+    repairOrderId: string,
+    photoId: string,
+  ) {
+    const photo =
+      await this.prisma.repairPhoto.findFirst({
+        where: {
+          id: photoId,
+          repairOrderId,
+        },
+      });
 
-  if (!photo) {
-    throw new NotFoundException(
-      'No se encontró la foto de la reparación',
-    );
+    if (!photo) {
+      throw new NotFoundException(
+        'No se encontró la foto de la reparación',
+      );
+    }
+
+    return photo;
   }
-
-  return photo;
-}
 
   async create(
     createRepairOrderDto: CreateRepairOrderDto,
   ) {
-    const device = await this.prisma.device.findUnique({
-      where: {
-        id: createRepairOrderDto.deviceId,
-      },
-    });
+    const device =
+      await this.prisma.device.findUnique({
+        where: {
+          id: createRepairOrderDto.deviceId,
+        },
+      });
 
     if (!device) {
       throw new NotFoundException(
@@ -97,47 +148,49 @@ photos: {
 
     const code = this.generateCode();
 
-    return this.prisma.$transaction(async (tx) => {
-      const repairOrder =
-        await tx.repairOrder.create({
-          data: {
-            code,
+    return this.prisma.$transaction(
+      async (tx) => {
+        const repairOrder =
+          await tx.repairOrder.create({
+            data: {
+              code,
 
-            reportedIssue:
-              createRepairOrderDto.reportedIssue,
+              reportedIssue:
+                createRepairOrderDto.reportedIssue,
 
-            estimatedCompletionDate:
-              createRepairOrderDto
-                .estimatedCompletionDate
-                ? new Date(
-                    createRepairOrderDto
-                      .estimatedCompletionDate,
-                  )
-                : undefined,
+              estimatedCompletionDate:
+                createRepairOrderDto
+                  .estimatedCompletionDate
+                  ? new Date(
+                      createRepairOrderDto
+                        .estimatedCompletionDate,
+                    )
+                  : undefined,
 
-            device: {
-              connect: {
-                id: createRepairOrderDto.deviceId,
+              device: {
+                connect: {
+                  id: createRepairOrderDto.deviceId,
+                },
               },
             },
+          });
+
+        await tx.repairStatusHistory.create({
+          data: {
+            repairOrderId: repairOrder.id,
+            status: repairOrder.status,
           },
         });
 
-      await tx.repairStatusHistory.create({
-        data: {
-          repairOrderId: repairOrder.id,
-          status: repairOrder.status,
-        },
-      });
+        return tx.repairOrder.findUniqueOrThrow({
+          where: {
+            id: repairOrder.id,
+          },
 
-      return tx.repairOrder.findUniqueOrThrow({
-        where: {
-          id: repairOrder.id,
-        },
-
-        include: this.fullOrderInclude,
-      });
-    });
+          include: this.fullOrderInclude,
+        });
+      },
+    );
   }
 
   findAll() {
@@ -151,66 +204,66 @@ photos: {
   }
 
   async addPhotos(
-  repairOrderId: string,
-  files: Express.Multer.File[],
-) {
-  const repairOrder =
-    await this.prisma.repairOrder.findUnique({
+    repairOrderId: string,
+    files: Express.Multer.File[],
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id: repairOrderId,
+        },
+
+        select: {
+          id: true,
+
+          _count: {
+            select: {
+              photos: true,
+            },
+          },
+        },
+      });
+
+    if (!repairOrder) {
+      throw new NotFoundException(
+        'No se encontró la orden de reparación',
+      );
+    }
+
+    if (
+      repairOrder._count.photos +
+        files.length >
+      6
+    ) {
+      throw new BadRequestException(
+        'Una reparación puede tener como máximo 6 fotos.',
+      );
+    }
+
+    if (files.length === 0) {
+      throw new BadRequestException(
+        'Tenés que seleccionar al menos una foto.',
+      );
+    }
+
+    await this.prisma.repairPhoto.createMany({
+      data: files.map((file) => ({
+        repairOrderId,
+        storageKey: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      })),
+    });
+
+    return this.prisma.repairOrder.findUnique({
       where: {
         id: repairOrderId,
       },
 
-      select: {
-        id: true,
-
-        _count: {
-          select: {
-            photos: true,
-          },
-        },
-      },
+      include: this.fullOrderInclude,
     });
-
-  if (!repairOrder) {
-    throw new NotFoundException(
-      'No se encontró la orden de reparación',
-    );
   }
-
-  if (
-    repairOrder._count.photos +
-      files.length >
-    6
-  ) {
-    throw new BadRequestException(
-      'Una reparación puede tener como máximo 6 fotos.',
-    );
-  }
-
-  if (files.length === 0) {
-    throw new BadRequestException(
-      'Tenés que seleccionar al menos una foto.',
-    );
-  }
-
-  await this.prisma.repairPhoto.createMany({
-    data: files.map((file) => ({
-      repairOrderId,
-      storageKey: file.filename,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-    })),
-  });
-
-  return this.prisma.repairOrder.findUnique({
-    where: {
-      id: repairOrderId,
-    },
-
-    include: this.fullOrderInclude,
-  });
-}
 
   async findOne(id: string) {
     const repairOrder =
@@ -233,7 +286,9 @@ photos: {
 
   async updateStatus(
     id: string,
-    updateRepairStatusDto: UpdateRepairStatusDto,
+    updateRepairStatusDto:
+      UpdateRepairStatusDto,
+    userId: string,
   ) {
     const repairOrder =
       await this.prisma.repairOrder.findUnique({
@@ -255,81 +310,92 @@ photos: {
       return this.findOne(id);
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.repairOrder.update({
-        where: {
-          id,
-        },
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.repairOrder.update({
+          where: {
+            id,
+          },
 
-        data: {
-          status: updateRepairStatusDto.status,
+          data: {
+            status:
+              updateRepairStatusDto.status,
 
-          deliveredAt:
-            updateRepairStatusDto.status ===
-            RepairStatus.DELIVERED
-              ? repairOrder.deliveredAt ??
-                new Date()
-              : null,
-        },
-      });
+            deliveredAt:
+              updateRepairStatusDto.status ===
+              RepairStatus.DELIVERED
+                ? repairOrder.deliveredAt ??
+                  new Date()
+                : null,
+          },
+        });
 
-      await tx.repairStatusHistory.create({
-        data: {
-          repairOrderId: id,
-          status: updateRepairStatusDto.status,
-        },
-      });
+        await tx.repairStatusHistory.create({
+          data: {
+            repairOrderId: id,
 
-      return tx.repairOrder.findUniqueOrThrow({
-        where: {
-          id,
-        },
+            status:
+              updateRepairStatusDto.status,
 
-        include: this.fullOrderInclude,
-      });
-    });
+            changedById: userId,
+          },
+        });
+
+        return tx.repairOrder.findUniqueOrThrow({
+          where: {
+            id,
+          },
+
+          include: this.fullOrderInclude,
+        });
+      },
+    );
   }
 
   async addInternalNote(
-  repairOrderId: string,
-  content: string,
-) {
-  const repairOrder =
-    await this.prisma.repairOrder.findUnique({
+    repairOrderId: string,
+    content: string,
+    userId: string,
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id: repairOrderId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!repairOrder) {
+      throw new NotFoundException(
+        'No se encontró la orden de reparación',
+      );
+    }
+
+    await this.prisma.repairInternalNote.create({
+      data: {
+        repairOrderId,
+        content: content.trim(),
+        createdById: userId,
+      },
+    });
+
+    return this.prisma.repairOrder.findUnique({
       where: {
         id: repairOrderId,
       },
 
-      select: {
-        id: true,
-      },
+      include: this.fullOrderInclude,
     });
-
-  if (!repairOrder) {
-    throw new NotFoundException(
-      'No se encontró la orden de reparación',
-    );
   }
-
-  await this.prisma.repairInternalNote.create({
-    data: {
-      repairOrderId,
-      content: content.trim(),
-    },
-  });
-
-  return this.prisma.repairOrder.findUnique({
-    where: {
-      id: repairOrderId,
-    },
-
-    include: this.fullOrderInclude,
-  });
-}
 
   async updateDiagnosis(
     id: string,
-    updateRepairDiagnosisDto: UpdateRepairDiagnosisDto,
+    updateRepairDiagnosisDto:
+      UpdateRepairDiagnosisDto,
+    userId: string,
   ) {
     const repairOrder =
       await this.prisma.repairOrder.findUnique({
@@ -353,6 +419,11 @@ photos: {
         diagnosis:
           updateRepairDiagnosisDto.diagnosis,
 
+        diagnosisUpdatedById: userId,
+
+        diagnosisUpdatedAt:
+          new Date(),
+
         estimatedCompletionDate:
           updateRepairDiagnosisDto
             .estimatedCompletionDate
@@ -369,7 +440,9 @@ photos: {
 
   async updateQuote(
     id: string,
-    updateRepairQuoteDto: UpdateRepairQuoteDto,
+    updateRepairQuoteDto:
+      UpdateRepairQuoteDto,
+    userId: string,
   ) {
     const repairOrder =
       await this.prisma.repairOrder.findUnique({
@@ -388,66 +461,94 @@ photos: {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.repairQuote.upsert({
-        where: {
-          repairOrderId: id,
-        },
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.repairQuote.upsert({
+          where: {
+            repairOrderId: id,
+          },
 
-        create: {
-          repairOrderId: id,
-          amount: updateRepairQuoteDto.amount,
-          description:
-            updateRepairQuoteDto.description,
-          status: QuoteStatus.PENDING,
-        },
+          create: {
+            repairOrderId: id,
 
-        update: {
-          amount: updateRepairQuoteDto.amount,
-          description:
-            updateRepairQuoteDto.description,
-          status: QuoteStatus.PENDING,
-          respondedAt: null,
-        },
-      });
+            amount:
+              updateRepairQuoteDto.amount,
 
-      if (
-        repairOrder.status !==
-        RepairStatus.WAITING_APPROVAL
-      ) {
-        await tx.repairOrder.update({
+            description:
+              updateRepairQuoteDto.description,
+
+            status:
+              QuoteStatus.PENDING,
+
+            updatedById:
+              userId,
+          },
+
+          update: {
+            amount:
+              updateRepairQuoteDto.amount,
+
+            description:
+              updateRepairQuoteDto.description,
+
+            status:
+              QuoteStatus.PENDING,
+
+            respondedAt:
+              null,
+
+            respondedById:
+              null,
+
+            updatedById:
+              userId,
+          },
+        });
+
+        if (
+          repairOrder.status !==
+          RepairStatus.WAITING_APPROVAL
+        ) {
+          await tx.repairOrder.update({
+            where: {
+              id,
+            },
+
+            data: {
+              status:
+                RepairStatus.WAITING_APPROVAL,
+            },
+          });
+
+          await tx.repairStatusHistory.create({
+            data: {
+              repairOrderId: id,
+
+              status:
+                RepairStatus.WAITING_APPROVAL,
+
+              changedById:
+                userId,
+            },
+          });
+        }
+
+        return tx.repairOrder.findUniqueOrThrow({
           where: {
             id,
           },
 
-          data: {
-            status:
-              RepairStatus.WAITING_APPROVAL,
-          },
+          include: this.fullOrderInclude,
         });
-
-        await tx.repairStatusHistory.create({
-          data: {
-            repairOrderId: id,
-            status:
-              RepairStatus.WAITING_APPROVAL,
-          },
-        });
-      }
-
-      return tx.repairOrder.findUniqueOrThrow({
-        where: {
-          id,
-        },
-
-        include: this.fullOrderInclude,
-      });
-    });
+      },
+    );
   }
 
   async updateQuoteStatus(
     id: string,
-    updateQuoteStatusDto: UpdateQuoteStatusDto,
+    updateQuoteStatusDto:
+      UpdateQuoteStatusDto,
+    userId: string,
   ) {
     const repairOrder =
       await this.prisma.repairOrder.findUnique({
@@ -478,49 +579,61 @@ photos: {
         ? RepairStatus.IN_REPAIR
         : RepairStatus.UNREPAIRED;
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.repairQuote.update({
-        where: {
-          repairOrderId: id,
-        },
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.repairQuote.update({
+          where: {
+            repairOrderId: id,
+          },
 
-        data: {
-          status:
-            updateQuoteStatusDto.status,
+          data: {
+            status:
+              updateQuoteStatusDto.status,
 
-          respondedAt: new Date(),
-        },
-      });
+            respondedAt:
+              new Date(),
 
-      if (
-        repairOrder.status !==
-        nextRepairStatus
-      ) {
-        await tx.repairOrder.update({
+            respondedById:
+              userId,
+          },
+        });
+
+        if (
+          repairOrder.status !==
+          nextRepairStatus
+        ) {
+          await tx.repairOrder.update({
+            where: {
+              id,
+            },
+
+            data: {
+              status:
+                nextRepairStatus,
+            },
+          });
+
+          await tx.repairStatusHistory.create({
+            data: {
+              repairOrderId: id,
+
+              status:
+                nextRepairStatus,
+
+              changedById:
+                userId,
+            },
+          });
+        }
+
+        return tx.repairOrder.findUniqueOrThrow({
           where: {
             id,
           },
 
-          data: {
-            status: nextRepairStatus,
-          },
+          include: this.fullOrderInclude,
         });
-
-        await tx.repairStatusHistory.create({
-          data: {
-            repairOrderId: id,
-            status: nextRepairStatus,
-          },
-        });
-      }
-
-      return tx.repairOrder.findUniqueOrThrow({
-        where: {
-          id,
-        },
-
-        include: this.fullOrderInclude,
-      });
-    });
+      },
+    );
   }
 }

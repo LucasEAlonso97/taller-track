@@ -67,6 +67,8 @@ model RepairOrder {
   trackingToken           String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reportedIssue           String
   diagnosis               String?
+  diagnosisUpdatedById    String?      @db.Uuid
+  diagnosisUpdatedAt      DateTime?
   status                  RepairStatus @default(RECEIVED)
   estimatedCompletionDate DateTime?
   deliveredAt             DateTime?
@@ -74,12 +76,15 @@ model RepairOrder {
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
+  diagnosisUpdatedBy User? @relation("DiagnosisUpdatedBy", fields: [diagnosisUpdatedById], references: [id], onDelete: SetNull)
+
   device        Device                @relation(fields: [deviceId], references: [id], onDelete: Restrict)
   statusHistory RepairStatusHistory[]
   internalNotes RepairInternalNote[]
   photos        RepairPhoto[]
   quote         RepairQuote?
 
+  @@index([diagnosisUpdatedById])
   @@index([deviceId])
   @@index([status])
 }
@@ -89,9 +94,12 @@ model RepairStatusHistory {
   status        RepairStatus
   repairOrderId String       @db.Uuid
   createdAt     DateTime     @default(now())
+  changedById   String?      @db.Uuid
 
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  changedBy   User?       @relation(fields: [changedById], references: [id], onDelete: SetNull)
 
+  @@index([changedById])
   @@index([repairOrderId])
   @@index([createdAt])
 }
@@ -105,19 +113,31 @@ model RepairQuote {
   repairOrderId String      @unique @db.Uuid
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  updatedById   String?     @db.Uuid
+  respondedById String?     @db.Uuid
+
+  updatedBy User? @relation("QuoteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  respondedBy User? @relation("QuoteRespondedBy", fields: [respondedById], references: [id], onDelete: SetNull)
 
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@index([updatedById])
+  @@index([respondedById])
 }
 
 model RepairInternalNote {
   id            String   @id @default(uuid()) @db.Uuid
   content       String
   repairOrderId String   @db.Uuid
+  createdById   String?  @db.Uuid
   createdAt     DateTime @default(now())
 
   repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([repairOrderId])
+  @@index([createdById])
   @@index([createdAt])
 }
 
@@ -137,14 +157,19 @@ model RepairPhoto {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(TECHNICIAN)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String                @id @default(uuid()) @db.Uuid
+  name                String
+  email               String                @unique
+  passwordHash        String
+  role                UserRole              @default(TECHNICIAN)
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  repairNotes         RepairInternalNote[]
+  repairStatusChanges RepairStatusHistory[]
+  diagnosisUpdates    RepairOrder[]         @relation("DiagnosisUpdatedBy")
+  quoteUpdates        RepairQuote[]         @relation("QuoteUpdatedBy")
+  quoteResponses      RepairQuote[]         @relation("QuoteRespondedBy")
 
   @@index([email])
 }
