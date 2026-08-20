@@ -2096,3 +2096,35 @@
     justify-content: space-between;
   }
 }
+
+.trace-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 9px;
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.trace-meta strong {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.trace-meta time {
+  color: #9ca3af;
+}
+
+.timeline-user {
+  display: block;
+  margin-top: 3px;
+  color: #9ca3af;
+  font-size: 10px;
+}
+
+.timeline-user strong {
+  color: #6b7280;
+  font-weight: 700;
+}

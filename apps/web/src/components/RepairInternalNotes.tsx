@@ -4,6 +4,7 @@ import {
 } from 'react';
 
 import { addRepairInternalNote } from '../services/repair-orders';
+
 import type {
   RepairInternalNote,
   RepairOrder,
@@ -12,7 +13,9 @@ import type {
 interface RepairInternalNotesProps {
   repairOrderId: string;
   notes: RepairInternalNote[];
-  onOrderUpdated: (order: RepairOrder) => void;
+  onOrderUpdated: (
+    order: RepairOrder,
+  ) => void;
 }
 
 export function RepairInternalNotes({
@@ -20,8 +23,12 @@ export function RepairInternalNotes({
   notes,
   onOrderUpdated,
 }: RepairInternalNotesProps) {
-  const [content, setContent] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [content, setContent] =
+    useState('');
+
+  const [saving, setSaving] =
+    useState(false);
+
   const [error, setError] =
     useState<string | null>(null);
 
@@ -30,7 +37,8 @@ export function RepairInternalNotes({
   ): Promise<void> => {
     event.preventDefault();
 
-    const trimmedContent = content.trim();
+    const trimmedContent =
+      content.trim();
 
     if (!trimmedContent) {
       return;
@@ -47,6 +55,7 @@ export function RepairInternalNotes({
         );
 
       onOrderUpdated(updatedOrder);
+
       setContent('');
     } catch {
       setError(
@@ -65,7 +74,9 @@ export function RepairInternalNotes({
             Uso interno
           </span>
 
-          <h4>Notas internas</h4>
+          <h4>
+            Notas internas
+          </h4>
         </div>
 
         <span className="internal-notes-count">
@@ -82,7 +93,9 @@ export function RepairInternalNotes({
         <textarea
           value={content}
           onChange={(event) => {
-            setContent(event.target.value);
+            setContent(
+              event.target.value,
+            );
           }}
           placeholder="Ej: Se probó otra fuente, el equipo continúa sin encender..."
           maxLength={2000}
@@ -99,7 +112,8 @@ export function RepairInternalNotes({
             className="secondary-button"
             disabled={
               saving ||
-              content.trim().length === 0
+              content.trim().length ===
+                0
             }
           >
             {saving
@@ -117,7 +131,8 @@ export function RepairInternalNotes({
 
       {notes.length === 0 ? (
         <p className="internal-notes-empty">
-          Todavía no hay notas internas.
+          Todavía no hay notas
+          internas.
         </p>
       ) : (
         <div className="internal-notes-list">
@@ -126,21 +141,45 @@ export function RepairInternalNotes({
               key={note.id}
               className="internal-note-item"
             >
-              <p>{note.content}</p>
+              <p>
+                {note.content}
+              </p>
 
-              <time
-                dateTime={note.createdAt}
-              >
-                {new Date(
-                  note.createdAt,
-                ).toLocaleString(
-                  'es-AR',
-                  {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  },
+              <div className="trace-meta">
+                {note.createdBy && (
+                  <>
+                    <strong>
+                      {
+                        note.createdBy
+                          .name
+                      }
+                    </strong>
+
+                    <span>
+                      {' · '}
+                    </span>
+                  </>
                 )}
-              </time>
+
+                <time
+                  dateTime={
+                    note.createdAt
+                  }
+                >
+                  {new Date(
+                    note.createdAt,
+                  ).toLocaleString(
+                    'es-AR',
+                    {
+                      dateStyle:
+                        'medium',
+
+                      timeStyle:
+                        'short',
+                    },
+                  )}
+                </time>
+              </div>
             </article>
           ))}
         </div>

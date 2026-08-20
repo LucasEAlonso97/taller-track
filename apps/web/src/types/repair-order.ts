@@ -1,4 +1,11 @@
 import type { Device } from './device';
+import type { UserRole } from './auth';
+
+export interface TraceUser {
+  id: string;
+  name: string;
+  role: UserRole;
+}
 
 export interface RepairPhoto {
   id: string;
@@ -30,6 +37,9 @@ export interface RepairStatusHistory {
   status: RepairStatus;
   repairOrderId: string;
   createdAt: string;
+
+  changedById: string | null;
+  changedBy: TraceUser | null;
 }
 
 export interface RepairQuote {
@@ -41,32 +51,12 @@ export interface RepairQuote {
   repairOrderId: string;
   createdAt: string;
   updatedAt: string;
-}
 
-export interface RepairOrder {
-  id: string;
-  code: string;
-  reportedIssue: string;
-  diagnosis: string | null;
-  status: RepairStatus;
-  estimatedCompletionDate: string | null;
-  deliveredAt: string | null;
-  deviceId: string;
-  createdAt: string;
-  updatedAt: string;
-  trackingToken: string;
-  internalNotes: RepairInternalNote[];
+  updatedById: string | null;
+  respondedById: string | null;
 
-  device: Device;
-  statusHistory: RepairStatusHistory[];
-  quote: RepairQuote | null;
-  photos: RepairPhoto[];
-}
-
-export interface CreateRepairOrderInput {
-  deviceId: string;
-  reportedIssue: string;
-  estimatedCompletionDate?: string;
+  updatedBy: TraceUser | null;
+  respondedBy: TraceUser | null;
 }
 
 export interface RepairInternalNote {
@@ -74,4 +64,47 @@ export interface RepairInternalNote {
   content: string;
   repairOrderId: string;
   createdAt: string;
+
+  createdById: string | null;
+  createdBy: TraceUser | null;
+}
+
+export interface RepairOrder {
+  id: string;
+  code: string;
+  reportedIssue: string;
+
+  diagnosis: string | null;
+
+  diagnosisUpdatedById: string | null;
+  diagnosisUpdatedAt: string | null;
+  diagnosisUpdatedBy: TraceUser | null;
+
+  status: RepairStatus;
+
+  estimatedCompletionDate: string | null;
+  deliveredAt: string | null;
+
+  deviceId: string;
+
+  createdAt: string;
+  updatedAt: string;
+
+  trackingToken: string;
+
+  device: Device;
+
+  internalNotes: RepairInternalNote[];
+
+  statusHistory: RepairStatusHistory[];
+
+  quote: RepairQuote | null;
+
+  photos: RepairPhoto[];
+}
+
+export interface CreateRepairOrderInput {
+  deviceId: string;
+  reportedIssue: string;
+  estimatedCompletionDate?: string;
 }

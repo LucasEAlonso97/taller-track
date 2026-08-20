@@ -985,18 +985,60 @@ export function RepairOrdersPanel({
                                 </button>
                               </div>
                             </div>
-                          ) : (
-                            <p
-                              className={
-                                order.diagnosis
-                                  ? 'diagnosis-text'
-                                  : 'diagnosis-empty'
-                              }
-                            >
-                              {order.diagnosis ??
-                                'Todavía no se cargó un diagnóstico.'}
-                            </p>
-                          )}
+                   ) : (
+  <>
+    <p
+      className={
+        order.diagnosis
+          ? 'diagnosis-text'
+          : 'diagnosis-empty'
+      }
+    >
+      {order.diagnosis ??
+        'Todavía no se cargó un diagnóstico.'}
+    </p>
+
+    {order.diagnosisUpdatedAt && (
+      <div className="trace-meta">
+        {order.diagnosisUpdatedBy && (
+          <>
+            <span>
+              Actualizado por{' '}
+            </span>
+
+            <strong>
+              {
+                order
+                  .diagnosisUpdatedBy
+                  .name
+              }
+            </strong>
+
+            <span>
+              {' · '}
+            </span>
+          </>
+        )}
+
+        <time
+          dateTime={
+            order.diagnosisUpdatedAt
+          }
+        >
+          {new Date(
+            order.diagnosisUpdatedAt,
+          ).toLocaleString(
+            'es-AR',
+            {
+              dateStyle: 'short',
+              timeStyle: 'short',
+            },
+          )}
+        </time>
+      </div>
+    )}
+  </>
+)}
                         </div>
 
                         <div className="quote-section">
@@ -1131,7 +1173,20 @@ export function RepairOrdersPanel({
                                     .amount,
                                 )}
                               </strong>
+                                {order.quote.updatedBy && (
+  <div className="trace-meta">
+    <span>
+      Presupuesto cargado por{' '}
+    </span>
 
+    <strong>
+      {
+        order.quote
+          .updatedBy.name
+      }
+    </strong>
+  </div>
+)}
                               {order.quote
                                 .description && (
                                 <p>
@@ -1357,27 +1412,36 @@ export function RepairOrdersPanel({
 
                                         <div className="timeline-content">
                                           <strong>
-                                            {
-                                              statusLabels[
-                                                historyItem
-                                                  .status
-                                              ]
-                                            }
-                                          </strong>
+  {
+    statusLabels[
+      historyItem.status
+    ]
+  }
+</strong>
 
-                                          <span>
-                                            {new Date(
-                                              historyItem.createdAt,
-                                            ).toLocaleString(
-                                              'es-AR',
-                                              {
-                                                dateStyle:
-                                                  'short',
-                                                timeStyle:
-                                                  'short',
-                                              },
-                                            )}
-                                          </span>
+<span>
+  {new Date(
+    historyItem.createdAt,
+  ).toLocaleString(
+    'es-AR',
+    {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    },
+  )}
+</span>
+
+{historyItem.changedBy && (
+  <small className="timeline-user">
+    Por{' '}
+    <strong>
+      {
+        historyItem
+          .changedBy.name
+      }
+    </strong>
+  </small>
+)}
                                         </div>
                                       </div>
                                     );
