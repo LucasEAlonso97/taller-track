@@ -14,6 +14,7 @@ import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 import { UsersService } from './users.service';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Roles('ADMIN')
 @Controller('users')
@@ -50,4 +51,23 @@ export class UsersController {
       body.isActive,
     );
   }
+
+  @Patch(':id/reset-password')
+resetPassword(
+  @Param('id', new ParseUUIDPipe())
+  id: string,
+
+  @Body()
+  body: ResetPasswordDto,
+) {
+  return this.usersService
+    .resetTechnicianPassword(
+      id,
+      body.newPassword,
+    )
+    .then(() => ({
+      message:
+        'Contraseña restablecida correctamente.',
+    }));
+}
 }

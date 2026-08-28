@@ -231,6 +231,57 @@ async updateTechnicianStatus(
     },
   });
 }
+
+async resetTechnicianPassword(
+  id: string,
+  newPassword: string,
+): Promise<void> {
+  const user =
+    await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+
+  if (!user) {
+    throw new NotFoundException(
+      'No se encontró el usuario.',
+    );
+  }
+
+  if (user.role !== 'TECHNICIAN') {
+    throw new BadRequestException(
+      'Solo se puede restablecer la contraseña de usuarios técnicos.',
+    );
+  }
+
+  const samePassword =
+    await this.verifyPassword(
+      newPassword,
+      user.passwordHash,
+    );
+
+  if (samePassword) {
+    throw new BadRequestException(
+      'La nueva contraseña debe ser diferente a la actual.',
+    );
+  }
+
+  const passwordHash =
+    await this.hashPassword(
+      newPassword,
+    );
+
+  await this.prisma.user.update({
+    where: {
+      id,
+    },
+
+    data: {
+      passwordHash,
+    },
+  });
+}
 async changePassword(
   userId: string,
   currentPassword: string,
