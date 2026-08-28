@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 
 import { UsersService } from '../users/users.service';
 
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SetupDto } from './dto/setup.dto';
 
@@ -78,6 +79,22 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    input: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(
+      userId,
+      input.currentPassword,
+      input.newPassword,
+    );
+
+    return {
+      message:
+        'Contraseña actualizada correctamente.',
     };
   }
 }

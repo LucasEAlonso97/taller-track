@@ -231,6 +231,63 @@ async updateTechnicianStatus(
     },
   });
 }
+async changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const user =
+    await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+  if (!user) {
+    throw new NotFoundException(
+      'No se encontró el usuario.',
+    );
+  }
+
+  const currentPasswordIsValid =
+    await this.verifyPassword(
+      currentPassword,
+      user.passwordHash,
+    );
+
+  if (!currentPasswordIsValid) {
+    throw new BadRequestException(
+      'La contraseña actual es incorrecta.',
+    );
+  }
+
+  const samePassword =
+    await this.verifyPassword(
+      newPassword,
+      user.passwordHash,
+    );
+
+  if (samePassword) {
+    throw new BadRequestException(
+      'La nueva contraseña debe ser diferente a la actual.',
+    );
+  }
+
+  const passwordHash =
+    await this.hashPassword(
+      newPassword,
+    );
+
+  await this.prisma.user.update({
+    where: {
+      id: userId,
+    },
+
+    data: {
+      passwordHash,
+    },
+  });
+}
 
   private async hashPassword(
     password: string,

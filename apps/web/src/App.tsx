@@ -5,15 +5,21 @@ import {
   useMemo,
   useState,
 } from 'react';
+
 import './App.css';
 
+import { AccountPanel } from './components/AccountPanel';
 import { DashboardPanel } from './components/DashboardPanel';
 import { DevicesPanel } from './components/DevicesPanel';
+import { LoginPage } from './components/LoginPage';
 import { RepairOrdersPanel } from './components/RepairOrdersPanel';
 import { SearchInput } from './components/SearchInput';
-import { clearSession } from './services/auth-storage';
 import { UsersPanel } from './components/UsersPanel';
 
+import {
+  clearSession,
+  getStoredUser,
+} from './services/auth-storage';
 
 import {
   createClient,
@@ -21,12 +27,6 @@ import {
   getClients,
   updateClient,
 } from './services/clients';
-
-import { LoginPage } from './components/LoginPage';
-
-import {
-  getStoredUser,
-} from './services/auth-storage';
 
 import type {
   AuthUser,
@@ -38,13 +38,16 @@ import type {
   UpdateClientInput,
 } from './types/client';
 
-import type { RepairFilter } from './types/repair-filter';
+import type {
+  RepairFilter,
+} from './types/repair-filter';
 
 type ActiveSection =
   | 'dashboard'
   | 'clients'
   | 'devices'
   | 'repairs'
+  | 'account'
   | 'users';
 
 const initialForm: CreateClientInput = {
@@ -56,108 +59,150 @@ const initialForm: CreateClientInput = {
 };
 
 function App() {
-  const [activeSection, setActiveSection] =
-    useState<ActiveSection>('dashboard');
+  const [
+    activeSection,
+    setActiveSection,
+  ] = useState<ActiveSection>(
+    'dashboard',
+  );
 
-    const [
-  currentUser,
-  setCurrentUser,
-] = useState<AuthUser | null>(
-  () => getStoredUser(),
-);
+  const [
+    currentUser,
+    setCurrentUser,
+  ] = useState<AuthUser | null>(
+    () => getStoredUser(),
+  );
 
-const handleLogout = (): void => {
-  clearSession();
-  setCurrentUser(null);
-};
+  const [
+    repairFilter,
+    setRepairFilter,
+  ] = useState<RepairFilter>('ALL');
 
-useEffect(() => {
-  const handleUnauthorized = (): void => {
+  const [
+    clients,
+    setClients,
+  ] = useState<Client[]>([]);
+
+  const [
+    form,
+    setForm,
+  ] = useState<CreateClientInput>(
+    initialForm,
+  );
+
+  const [
+    selectedClient,
+    setSelectedClient,
+  ] = useState<Client | null>(null);
+
+  const [
+    editForm,
+    setEditForm,
+  ] = useState<UpdateClientInput>(
+    {},
+  );
+
+  const [
+    clientSearch,
+    setClientSearch,
+  ] = useState('');
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    loadingDetail,
+    setLoadingDetail,
+  ] = useState(false);
+
+  const [
+    updating,
+    setUpdating,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const handleLogout = (): void => {
+    clearSession();
     setCurrentUser(null);
   };
 
-  window.addEventListener(
-    'auth:unauthorized',
-    handleUnauthorized,
-  );
+  useEffect(() => {
+    const handleUnauthorized =
+      (): void => {
+        setCurrentUser(null);
+      };
 
-  return () => {
-    window.removeEventListener(
+    window.addEventListener(
       'auth:unauthorized',
       handleUnauthorized,
     );
-  };
-}, []);
 
-  const [repairFilter, setRepairFilter] =
-    useState<RepairFilter>('ALL');
-
-  const [clients, setClients] =
-    useState<Client[]>([]);
-
-  const [form, setForm] =
-    useState<CreateClientInput>(
-      initialForm,
-    );
-
-  const [selectedClient, setSelectedClient] =
-    useState<Client | null>(null);
-
-  const [editForm, setEditForm] =
-    useState<UpdateClientInput>({});
-
-  const [clientSearch, setClientSearch] =
-    useState('');
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [loadingDetail, setLoadingDetail] =
-    useState(false);
-
-  const [updating, setUpdating] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const filteredClients = useMemo(() => {
-    const search = clientSearch
-      .trim()
-      .toLowerCase();
-
-    if (!search) {
-      return clients;
-    }
-
-    return clients.filter((client) => {
-      const fullName =
-        `${client.firstName} ${client.lastName}`.toLowerCase();
-
-      const matchesEmail =
-        client.email
-          ?.toLowerCase()
-          .includes(search) ?? false;
-
-      return (
-        fullName.includes(search) ||
-        client.phone
-          .toLowerCase()
-          .includes(search) ||
-        matchesEmail
+    return () => {
+      window.removeEventListener(
+        'auth:unauthorized',
+        handleUnauthorized,
       );
-    });
-  }, [clients, clientSearch]);
+    };
+  }, []);
+
+  const filteredClients =
+    useMemo(() => {
+      const search =
+        clientSearch
+          .trim()
+          .toLowerCase();
+
+      if (!search) {
+        return clients;
+      }
+
+      return clients.filter(
+        (client) => {
+          const fullName =
+            `${client.firstName} ${client.lastName}`.toLowerCase();
+
+          const matchesEmail =
+            client.email
+              ?.toLowerCase()
+              .includes(search) ??
+            false;
+
+          return (
+            fullName.includes(
+              search,
+            ) ||
+            client.phone
+              .toLowerCase()
+              .includes(search) ||
+            matchesEmail
+          );
+        },
+      );
+    }, [
+      clients,
+      clientSearch,
+    ]);
 
   const loadClients =
     async (): Promise<void> => {
       try {
         setError(null);
 
-        const data = await getClients();
+        const data =
+          await getClients();
 
         setClients(data);
       } catch (error) {
@@ -175,19 +220,23 @@ useEffect(() => {
     void loadClients();
   }, []);
 
-  
-
   const handleChange = (
     event: ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
+      | HTMLInputElement
+      | HTMLTextAreaElement
     >,
   ): void => {
-    const { name, value } = event.target;
+    const {
+      name,
+      value,
+    } = event.target;
 
-    setForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    setForm(
+      (current) => ({
+        ...current,
+        [name]: value,
+      }),
+    );
   };
 
   const handleSubmit = async (
@@ -202,18 +251,22 @@ useEffect(() => {
       const newClient =
         await createClient({
           ...form,
+
           email:
             form.email ||
             undefined,
+
           notes:
             form.notes ||
             undefined,
         });
 
-      setClients((current) => [
-        newClient,
-        ...current,
-      ]);
+      setClients(
+        (current) => [
+          newClient,
+          ...current,
+        ],
+      );
 
       setForm(initialForm);
     } catch (error) {
@@ -227,133 +280,184 @@ useEffect(() => {
     }
   };
 
-  const handleOpenClient = async (
-    id: string,
-  ): Promise<void> => {
-    try {
-      setLoadingDetail(true);
-      setError(null);
+  const handleOpenClient =
+    async (
+      id: string,
+    ): Promise<void> => {
+      try {
+        setLoadingDetail(true);
+        setError(null);
 
-      const client =
-        await getClientById(id);
+        const client =
+          await getClientById(
+            id,
+          );
 
-      setSelectedClient(client);
+        setSelectedClient(
+          client,
+        );
 
-      setEditForm({
-        firstName: client.firstName,
-        lastName: client.lastName,
-        phone: client.phone,
-        email: client.email ?? '',
-        notes: client.notes ?? '',
-      });
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo cargar el cliente.',
-      );
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
+        setEditForm({
+          firstName:
+            client.firstName,
+
+          lastName:
+            client.lastName,
+
+          phone:
+            client.phone,
+
+          email:
+            client.email ??
+            '',
+
+          notes:
+            client.notes ??
+            '',
+        });
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo cargar el cliente.',
+        );
+      } finally {
+        setLoadingDetail(
+          false,
+        );
+      }
+    };
 
   const handleEditChange = (
     event: ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement
+      | HTMLInputElement
+      | HTMLTextAreaElement
     >,
   ): void => {
-    const { name, value } =
-      event.target;
+    const {
+      name,
+      value,
+    } = event.target;
 
-    setEditForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    setEditForm(
+      (current) => ({
+        ...current,
+        [name]: value,
+      }),
+    );
   };
 
-  const handleUpdateClient = async (
-    event: FormEvent<HTMLFormElement>,
-  ): Promise<void> => {
-    event.preventDefault();
+  const handleUpdateClient =
+    async (
+      event: FormEvent<HTMLFormElement>,
+    ): Promise<void> => {
+      event.preventDefault();
 
-    if (!selectedClient) {
-      return;
-    }
+      if (!selectedClient) {
+        return;
+      }
 
-    try {
-      setUpdating(true);
-      setError(null);
+      try {
+        setUpdating(true);
+        setError(null);
 
-      const updatedClient =
-        await updateClient(
-          selectedClient.id,
-          {
-            ...editForm,
-            email:
-              editForm.email ||
-              undefined,
-            notes:
-              editForm.notes ||
-              undefined,
-          },
+        const updatedClient =
+          await updateClient(
+            selectedClient.id,
+            {
+              ...editForm,
+
+              email:
+                editForm.email ||
+                undefined,
+
+              notes:
+                editForm.notes ||
+                undefined,
+            },
+          );
+
+        setSelectedClient(
+          updatedClient,
         );
 
-      setSelectedClient(
-        updatedClient,
-      );
-
-      setClients((current) =>
-        current.map((client) =>
-          client.id ===
-          updatedClient.id
-            ? updatedClient
-            : client,
-        ),
-      );
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo actualizar el cliente.',
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
+        setClients(
+          (current) =>
+            current.map(
+              (client) =>
+                client.id ===
+                updatedClient.id
+                  ? updatedClient
+                  : client,
+            ),
+        );
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo actualizar el cliente.',
+        );
+      } finally {
+        setUpdating(false);
+      }
+    };
 
   const handleCloseDetail =
     (): void => {
       setSelectedClient(null);
+
       setEditForm({});
     };
 
   const handleSectionChange = (
     section: ActiveSection,
   ): void => {
-    if (section === 'repairs') {
-      setRepairFilter('ALL');
+    if (
+      section === 'repairs'
+    ) {
+      setRepairFilter(
+        'ALL',
+      );
     }
 
-    setActiveSection(section);
+    setActiveSection(
+      section,
+    );
+
     setError(null);
-    setSelectedClient(null);
+
+    setSelectedClient(
+      null,
+    );
   };
 
   const handleOpenRepairs = (
     filter: RepairFilter,
   ): void => {
-    setRepairFilter(filter);
-    setActiveSection('repairs');
+    setRepairFilter(
+      filter,
+    );
+
+    setActiveSection(
+      'repairs',
+    );
+
     setError(null);
-    setSelectedClient(null);
+
+    setSelectedClient(
+      null,
+    );
   };
+
   if (!currentUser) {
-  return (
-    <LoginPage
-      onLogin={setCurrentUser}
-    />
-  );
-}
+    return (
+      <LoginPage
+        onLogin={
+          setCurrentUser
+        }
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -437,40 +541,68 @@ useEffect(() => {
             Reparaciones
           </button>
 
-          {currentUser.role === 'ADMIN' && (
-  <button
-    type="button"
-    className={
-      activeSection === 'users'
-        ? 'nav-item active'
-        : 'nav-item'
-    }
-    onClick={() =>
-      handleSectionChange('users')
-    }
-  >
-    Usuarios
-  </button>
-)}
-        </nav>
-          <div className="sidebar-user">
-    <div>
-      <strong>{currentUser.name}</strong>
-      <span>
-        {currentUser.role === 'ADMIN'
-          ? 'Administrador'
-          : 'Técnico'}
-      </span>
-    </div>
+          <button
+            className={`nav-item ${
+              activeSection ===
+              'account'
+                ? 'active'
+                : ''
+            }`}
+            type="button"
+            onClick={() =>
+              handleSectionChange(
+                'account',
+              )
+            }
+          >
+            Mi cuenta
+          </button>
 
-    <button
-      type="button"
-      className="sidebar-logout"
-      onClick={handleLogout}
-    >
-      Cerrar sesión
-    </button>
-  </div>
+          {currentUser.role ===
+            'ADMIN' && (
+            <button
+              type="button"
+              className={
+                activeSection ===
+                'users'
+                  ? 'nav-item active'
+                  : 'nav-item'
+              }
+              onClick={() =>
+                handleSectionChange(
+                  'users',
+                )
+              }
+            >
+              Usuarios
+            </button>
+          )}
+        </nav>
+
+        <div className="sidebar-user">
+          <div>
+            <strong>
+              {currentUser.name}
+            </strong>
+
+            <span>
+              {currentUser.role ===
+              'ADMIN'
+                ? 'Administrador'
+                : 'Técnico'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="sidebar-logout"
+            onClick={
+              handleLogout
+            }
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       <main className="content">
@@ -482,7 +614,6 @@ useEffect(() => {
             }
           />
         )}
-        
 
         {activeSection ===
           'clients' && (
@@ -494,19 +625,23 @@ useEffect(() => {
                 </p>
 
                 <h2>
-                  Gestión de clientes
+                  Gestión de
+                  clientes
                 </h2>
 
                 <p>
-                  Registrá, consultá y
-                  editá los clientes del
+                  Registrá,
+                  consultá y editá
+                  los clientes del
                   taller.
                 </p>
               </div>
 
               <div className="client-counter">
                 <strong>
-                  {clients.length}
+                  {
+                    clients.length
+                  }
                 </strong>
 
                 <span>
@@ -526,11 +661,13 @@ useEffect(() => {
                 <div className="panel-header">
                   <div>
                     <span className="panel-label">
-                      Nuevo registro
+                      Nuevo
+                      registro
                     </span>
 
                     <h3>
-                      Agregar cliente
+                      Agregar
+                      cliente
                     </h3>
                   </div>
                 </div>
@@ -555,7 +692,9 @@ useEffect(() => {
                           handleChange
                         }
                         required
-                        minLength={2}
+                        minLength={
+                          2
+                        }
                       />
                     </label>
 
@@ -572,7 +711,9 @@ useEffect(() => {
                           handleChange
                         }
                         required
-                        minLength={2}
+                        minLength={
+                          2
+                        }
                       />
                     </label>
                   </div>
@@ -590,7 +731,9 @@ useEffect(() => {
                         handleChange
                       }
                       required
-                      minLength={6}
+                      minLength={
+                        6
+                      }
                     />
                   </label>
 
@@ -642,11 +785,13 @@ useEffect(() => {
                 <div className="panel-header">
                   <div>
                     <span className="panel-label">
-                      Base de clientes
+                      Base de
+                      clientes
                     </span>
 
                     <h3>
-                      Clientes registrados
+                      Clientes
+                      registrados
                     </h3>
                   </div>
                 </div>
@@ -667,7 +812,8 @@ useEffect(() => {
 
                 {loading && (
                   <p className="empty-state">
-                    Cargando clientes...
+                    Cargando
+                    clientes...
                   </p>
                 )}
 
@@ -675,8 +821,8 @@ useEffect(() => {
                   clients.length ===
                     0 && (
                     <p className="empty-state">
-                      Todavía no hay
-                      clientes
+                      Todavía no
+                      hay clientes
                       registrados.
                     </p>
                   )}
@@ -687,9 +833,14 @@ useEffect(() => {
                   filteredClients.length ===
                     0 && (
                     <p className="empty-state">
-                      No encontramos
-                      clientes para "
-                      {clientSearch}".
+                      No
+                      encontramos
+                      clientes para
+                      "
+                      {
+                        clientSearch
+                      }
+                      ".
                     </p>
                   )}
 
@@ -698,7 +849,9 @@ useEffect(() => {
                     0 && (
                     <div className="client-list">
                       {filteredClients.map(
-                        (client) => (
+                        (
+                          client,
+                        ) => (
                           <article
                             className="client-card"
                             key={
@@ -711,6 +864,7 @@ useEffect(() => {
                                   0,
                                 )
                                 .toUpperCase()}
+
                               {client.lastName
                                 .charAt(
                                   0,
@@ -752,7 +906,8 @@ useEffect(() => {
                                 )
                               }
                             >
-                              Ver detalle
+                              Ver
+                              detalle
                             </button>
                           </article>
                         ),
@@ -765,7 +920,8 @@ useEffect(() => {
             {loadingDetail && (
               <section className="detail-panel">
                 <p>
-                  Cargando cliente...
+                  Cargando
+                  cliente...
                 </p>
               </section>
             )}
@@ -932,10 +1088,21 @@ useEffect(() => {
           />
         )}
 
-        {activeSection === 'users' &&
-  currentUser.role === 'ADMIN' && (
-    <UsersPanel />
-  )}
+        {activeSection ===
+          'account' && (
+          <AccountPanel
+            currentUser={
+              currentUser
+            }
+          />
+        )}
+
+        {activeSection ===
+          'users' &&
+          currentUser.role ===
+            'ADMIN' && (
+            <UsersPanel />
+          )}
       </main>
     </div>
   );
