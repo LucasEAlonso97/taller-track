@@ -2,14 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
+
 import { Public } from './decorators/public.decorator';
+
 import type { AuthenticatedRequest } from './guards/auth.guard';
 
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SetupDto } from './dto/setup.dto';
 
@@ -45,5 +49,19 @@ export class AuthController {
     return {
       user: request.user,
     };
+  }
+
+  @Patch('change-password')
+  changePassword(
+    @Req()
+    request: AuthenticatedRequest,
+
+    @Body()
+    body: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      request.user!.sub,
+      body,
+    );
   }
 }

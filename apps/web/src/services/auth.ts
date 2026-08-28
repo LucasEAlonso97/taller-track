@@ -1,10 +1,14 @@
 import type {
+  ChangePasswordInput,
+  ChangePasswordResponse,
   LoginResponse,
 } from '../types/auth';
 
 import {
   saveSession,
 } from './auth-storage';
+
+import { apiFetch } from './api';
 
 const API_URL =
   import.meta.env.VITE_API_URL;
@@ -45,4 +49,44 @@ export async function login(
   );
 
   return result;
+}
+
+export async function changePassword(
+  input: ChangePasswordInput,
+): Promise<ChangePasswordResponse> {
+  const response = await apiFetch(
+    `${API_URL}/auth/change-password`,
+    {
+      method: 'PATCH',
+
+      headers: {
+        'Content-Type':
+          'application/json',
+      },
+
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    let message =
+      'No se pudo cambiar la contraseña.';
+
+    try {
+      const body =
+        (await response.json()) as {
+          message?: string;
+        };
+
+      if (body.message) {
+        message = body.message;
+      }
+    } catch {
+      // Se mantiene el mensaje genérico.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<ChangePasswordResponse>;
 }
