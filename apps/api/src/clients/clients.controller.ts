@@ -1,23 +1,34 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
+
+import { Roles } from '../auth/decorators/roles.decorator';
+
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+  ) {}
 
   @Post()
-  create(@Body() createClientDto: CreateClientDto) {
-    return this.clientsService.create(createClientDto);
+  create(
+    @Body()
+    createClientDto: CreateClientDto,
+  ) {
+    return this.clientsService.create(
+      createClientDto,
+    );
   }
 
   @Get()
@@ -27,16 +38,32 @@ export class ClientsController {
 
   @Get(':id')
   findOne(
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', new ParseUUIDPipe())
+    id: string,
   ) {
     return this.clientsService.findOne(id);
   }
 
   @Patch(':id')
   update(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() updateClientDto: UpdateClientDto,
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+
+    @Body()
+    updateClientDto: UpdateClientDto,
   ) {
-    return this.clientsService.update(id, updateClientDto);
+    return this.clientsService.update(
+      id,
+      updateClientDto,
+    );
+  }
+
+  @Roles('ADMIN')
+  @Delete(':id')
+  remove(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+  ) {
+    return this.clientsService.remove(id);
   }
 }

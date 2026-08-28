@@ -9,6 +9,7 @@ import {
 import './App.css';
 
 import { AccountPanel } from './components/AccountPanel';
+import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DashboardPanel } from './components/DashboardPanel';
 import { DevicesPanel } from './components/DevicesPanel';
 import { LoginPage } from './components/LoginPage';
@@ -23,6 +24,7 @@ import {
 
 import {
   createClient,
+  deleteClient,
   getClientById,
   getClients,
   updateClient,
@@ -94,6 +96,16 @@ function App() {
     selectedClient,
     setSelectedClient,
   ] = useState<Client | null>(null);
+
+  const [
+    clientToDelete,
+    setClientToDelete,
+  ] = useState<Client | null>(null);
+
+  const [
+    deletingClientId,
+    setDeletingClientId,
+  ] = useState<string | null>(null);
 
   const [
     editForm,
@@ -399,6 +411,57 @@ function App() {
         );
       } finally {
         setUpdating(false);
+      }
+    };
+
+  const handleDeleteClient =
+    async (): Promise<void> => {
+      if (!clientToDelete) {
+        return;
+      }
+
+      const clientId =
+        clientToDelete.id;
+
+      try {
+        setDeletingClientId(
+          clientId,
+        );
+
+        setError(null);
+
+        await deleteClient(
+          clientId,
+        );
+
+        setClients(
+          (current) =>
+            current.filter(
+              (client) =>
+                client.id !==
+                clientId,
+            ),
+        );
+
+        if (
+          selectedClient?.id ===
+          clientId
+        ) {
+          setSelectedClient(null);
+          setEditForm({});
+        }
+
+        setClientToDelete(null);
+      } catch (error) {
+        setClientToDelete(null);
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar el cliente.',
+        );
+      } finally {
+        setDeletingClientId(null);
       }
     };
 
@@ -1069,6 +1132,37 @@ function App() {
                         : 'Guardar cambios'}
                     </button>
                   </form>
+
+                  {currentUser.role ===
+                    'ADMIN' && (
+                    <div className="repair-danger-zone">
+                      <div>
+                        <strong>
+                          Eliminar
+                          cliente
+                        </strong>
+
+                        <span>
+                          Solo puede
+                          eliminarse si
+                          no tiene equipos
+                          asociados.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() =>
+                          setClientToDelete(
+                            selectedClient,
+                          )
+                        }
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
                 </section>
               )}
           </>
@@ -1076,7 +1170,12 @@ function App() {
 
         {activeSection ===
           'devices' && (
-          <DevicesPanel />
+          <DevicesPanel
+            canDelete={
+              currentUser.role ===
+              'ADMIN'
+            }
+          />
         )}
 
         {activeSection ===
@@ -1084,6 +1183,10 @@ function App() {
           <RepairOrdersPanel
             initialFilter={
               repairFilter
+            }
+            canDelete={
+              currentUser.role ===
+              'ADMIN'
             }
           />
         )}
@@ -1104,6 +1207,24 @@ function App() {
             <UsersPanel />
           )}
       </main>
+
+      {clientToDelete && (
+        <ConfirmDeleteModal
+          title="Eliminar cliente"
+          description={`${clientToDelete.firstName} ${clientToDelete.lastName}`}
+          confirmLabel="Eliminar cliente"
+          loading={
+            deletingClientId ===
+            clientToDelete.id
+          }
+          onCancel={() =>
+            setClientToDelete(null)
+          }
+          onConfirm={() =>
+            void handleDeleteClient()
+          }
+        />
+      )}
     </div>
   );
 }
