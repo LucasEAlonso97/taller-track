@@ -17,3 +17,11 @@ export interface CreateTechnicianInput {
   email: string;
   password: string;
 }
+
+export interface ResetTechnicianPasswordInput {
+  newPassword: string;
+}
+
+export interface ResetTechnicianPasswordResponse {
+  message: string;
+}

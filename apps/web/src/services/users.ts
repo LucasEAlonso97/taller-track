@@ -2,6 +2,8 @@ import { apiFetch } from './api';
 
 import type {
   CreateTechnicianInput,
+  ResetTechnicianPasswordInput,
+  ResetTechnicianPasswordResponse,
   User,
 } from '../types/user';
 
@@ -29,9 +31,12 @@ export async function createTechnician(
     `${API_URL}/users`,
     {
       method: 'POST',
+
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
+
       body: JSON.stringify(input),
     },
   );
@@ -58,9 +63,12 @@ export async function updateUserStatus(
     `${API_URL}/users/${userId}/status`,
     {
       method: 'PATCH',
+
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
+
       body: JSON.stringify({
         isActive,
       }),
@@ -79,4 +87,36 @@ export async function updateUserStatus(
   }
 
   return response.json() as Promise<User>;
+}
+
+export async function resetTechnicianPassword(
+  userId: string,
+  input: ResetTechnicianPasswordInput,
+): Promise<ResetTechnicianPasswordResponse> {
+  const response = await apiFetch(
+    `${API_URL}/users/${userId}/reset-password`,
+    {
+      method: 'PATCH',
+
+      headers: {
+        'Content-Type':
+          'application/json',
+      },
+
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response
+      .json()
+      .catch(() => null);
+
+    throw new Error(
+      body?.message ??
+        'No se pudo restablecer la contraseña.',
+    );
+  }
+
+  return response.json() as Promise<ResetTechnicianPasswordResponse>;
 }
