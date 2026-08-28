@@ -6,10 +6,12 @@ import {
   useState,
 } from 'react';
 
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { SearchInput } from './SearchInput';
 
 import {
   createDevice,
+  deleteDevice,
   getDevices,
 } from '../services/devices';
 
@@ -32,7 +34,13 @@ const initialForm: CreateDeviceInput = {
   clientId: '',
 };
 
-export function DevicesPanel() {
+interface DevicesPanelProps {
+  canDelete?: boolean;
+}
+
+export function DevicesPanel({
+  canDelete = false,
+}: DevicesPanelProps) {
   const [devices, setDevices] =
     useState<Device[]>([]);
 
@@ -40,9 +48,12 @@ export function DevicesPanel() {
     useState<Client[]>([]);
 
   const [form, setForm] =
-    useState<CreateDeviceInput>(initialForm);
+    useState<CreateDeviceInput>(
+      initialForm,
+    );
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] =
+    useState('');
 
   const [loading, setLoading] =
     useState(true);
@@ -53,77 +64,93 @@ export function DevicesPanel() {
   const [error, setError] =
     useState<string | null>(null);
 
-  const filteredDevices = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
+  const [
+    deviceToDelete,
+    setDeviceToDelete,
+  ] = useState<Device | null>(null);
 
-    if (!query) {
-      return devices;
-    }
+  const [
+    deletingDeviceId,
+    setDeletingDeviceId,
+  ] = useState<string | null>(null);
 
-    return devices.filter((device) => {
-      const owner =
-        `${device.client.firstName} ${device.client.lastName}`.toLowerCase();
+  const filteredDevices =
+    useMemo(() => {
+      const query = search
+        .trim()
+        .toLowerCase();
 
-      const serialMatches =
-        device.serialNumber
-          ?.toLowerCase()
-          .includes(query) ?? false;
+      if (!query) {
+        return devices;
+      }
 
-      return (
-        owner.includes(query) ||
-        device.type
-          .toLowerCase()
-          .includes(query) ||
-        device.brand
-          .toLowerCase()
-          .includes(query) ||
-        device.model
-          .toLowerCase()
-          .includes(query) ||
-        serialMatches
+      return devices.filter(
+        (device) => {
+          const owner =
+            `${device.client.firstName} ${device.client.lastName}`.toLowerCase();
+
+          const serialMatches =
+            device.serialNumber
+              ?.toLowerCase()
+              .includes(query) ??
+            false;
+
+          return (
+            owner.includes(query) ||
+            device.type
+              .toLowerCase()
+              .includes(query) ||
+            device.brand
+              .toLowerCase()
+              .includes(query) ||
+            device.model
+              .toLowerCase()
+              .includes(query) ||
+            serialMatches
+          );
+        },
       );
-    });
-  }, [devices, search]);
+    }, [devices, search]);
 
   useEffect(() => {
-    const loadData = async (): Promise<void> => {
-      try {
-        setError(null);
+    const loadData =
+      async (): Promise<void> => {
+        try {
+          setError(null);
 
-        const [
-          devicesData,
-          clientsData,
-        ] = await Promise.all([
-          getDevices(),
-          getClients(),
-        ]);
+          const [
+            devicesData,
+            clientsData,
+          ] = await Promise.all([
+            getDevices(),
+            getClients(),
+          ]);
 
-        setDevices(devicesData);
-        setClients(clientsData);
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : 'No se pudieron cargar los equipos.',
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+          setDevices(devicesData);
+          setClients(clientsData);
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los equipos.',
+          );
+        } finally {
+          setLoading(false);
+        }
+      };
 
     void loadData();
   }, []);
 
   const handleChange = (
     event: ChangeEvent<
-      HTMLInputElement |
-      HTMLTextAreaElement |
-      HTMLSelectElement
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | HTMLSelectElement
     >,
   ): void => {
-    const { name, value } = event.target;
+    const { name, value } =
+      event.target;
 
     setForm((current) => ({
       ...current,
@@ -177,6 +204,46 @@ export function DevicesPanel() {
     }
   };
 
+  const handleDeleteDevice =
+    async (): Promise<void> => {
+      if (!deviceToDelete) {
+        return;
+      }
+
+      const deviceId =
+        deviceToDelete.id;
+
+      try {
+        setDeletingDeviceId(
+          deviceId,
+        );
+
+        setError(null);
+
+        await deleteDevice(deviceId);
+
+        setDevices((current) =>
+          current.filter(
+            (device) =>
+              device.id !==
+              deviceId,
+          ),
+        );
+
+        setDeviceToDelete(null);
+      } catch (error) {
+        setDeviceToDelete(null);
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar el equipo.',
+        );
+      } finally {
+        setDeletingDeviceId(null);
+      }
+    };
+
   return (
     <>
       <header className="page-header">
@@ -190,9 +257,10 @@ export function DevicesPanel() {
           </h2>
 
           <p>
-            Registrá los dispositivos que
-            ingresan al taller y asocialos
-            con sus propietarios.
+            Registrá los dispositivos
+            que ingresan al taller y
+            asocialos con sus
+            propietarios.
           </p>
         </div>
 
@@ -230,8 +298,9 @@ export function DevicesPanel() {
           {clients.length === 0 &&
           !loading ? (
             <p className="empty-state">
-              Primero necesitás registrar
-              al menos un cliente.
+              Primero necesitás
+              registrar al menos un
+              cliente.
             </p>
           ) : (
             <form
@@ -244,7 +313,9 @@ export function DevicesPanel() {
                 <select
                   name="clientId"
                   value={form.clientId}
-                  onChange={handleChange}
+                  onChange={
+                    handleChange
+                  }
                   required
                 >
                   <option value="">
@@ -254,13 +325,23 @@ export function DevicesPanel() {
                   {clients.map(
                     (client) => (
                       <option
-                        key={client.id}
-                        value={client.id}
+                        key={
+                          client.id
+                        }
+                        value={
+                          client.id
+                        }
                       >
-                        {client.firstName}{' '}
-                        {client.lastName}
+                        {
+                          client.firstName
+                        }{' '}
+                        {
+                          client.lastName
+                        }
                         {' — '}
-                        {client.phone}
+                        {
+                          client.phone
+                        }
                       </option>
                     ),
                   )}
@@ -274,8 +355,12 @@ export function DevicesPanel() {
                   <input
                     type="text"
                     name="type"
-                    value={form.type}
-                    onChange={handleChange}
+                    value={
+                      form.type
+                    }
+                    onChange={
+                      handleChange
+                    }
                     required
                     minLength={2}
                     placeholder="Notebook"
@@ -288,8 +373,12 @@ export function DevicesPanel() {
                   <input
                     type="text"
                     name="brand"
-                    value={form.brand}
-                    onChange={handleChange}
+                    value={
+                      form.brand
+                    }
+                    onChange={
+                      handleChange
+                    }
                     required
                     minLength={2}
                     placeholder="Lenovo"
@@ -303,8 +392,12 @@ export function DevicesPanel() {
                 <input
                   type="text"
                   name="model"
-                  value={form.model}
-                  onChange={handleChange}
+                  value={
+                    form.model
+                  }
+                  onChange={
+                    handleChange
+                  }
                   required
                   placeholder="ThinkPad T480"
                 />
@@ -317,9 +410,12 @@ export function DevicesPanel() {
                   type="text"
                   name="serialNumber"
                   value={
-                    form.serialNumber ?? ''
+                    form.serialNumber ??
+                    ''
                   }
-                  onChange={handleChange}
+                  onChange={
+                    handleChange
+                  }
                   placeholder="Opcional"
                 />
               </label>
@@ -330,9 +426,12 @@ export function DevicesPanel() {
                 <textarea
                   name="accessories"
                   value={
-                    form.accessories ?? ''
+                    form.accessories ??
+                    ''
                   }
-                  onChange={handleChange}
+                  onChange={
+                    handleChange
+                  }
                   rows={3}
                   placeholder="Ej: cargador original, funda..."
                 />
@@ -347,7 +446,9 @@ export function DevicesPanel() {
                     form.initialCondition ??
                     ''
                   }
-                  onChange={handleChange}
+                  onChange={
+                    handleChange
+                  }
                   rows={4}
                   placeholder="Ej: marcas de uso, pantalla rota..."
                 />
@@ -383,7 +484,9 @@ export function DevicesPanel() {
             devices.length > 0 && (
               <SearchInput
                 value={search}
-                onChange={setSearch}
+                onChange={
+                  setSearch
+                }
                 placeholder="Buscar por propietario, marca, modelo o serie..."
               />
             )}
@@ -395,10 +498,11 @@ export function DevicesPanel() {
           )}
 
           {!loading &&
-            devices.length === 0 && (
+            devices.length ===
+              0 && (
               <p className="empty-state">
-                Todavía no hay equipos
-                registrados.
+                Todavía no hay
+                equipos registrados.
               </p>
             )}
 
@@ -425,12 +529,18 @@ export function DevicesPanel() {
                       <div className="device-card-top">
                         <div>
                           <span className="device-type">
-                            {device.type}
+                            {
+                              device.type
+                            }
                           </span>
 
                           <h4>
-                            {device.brand}{' '}
-                            {device.model}
+                            {
+                              device.brand
+                            }{' '}
+                            {
+                              device.model
+                            }
                           </h4>
                         </div>
 
@@ -479,7 +589,8 @@ export function DevicesPanel() {
                       {device.initialCondition && (
                         <div className="device-detail">
                           <strong>
-                            Estado al ingresar
+                            Estado al
+                            ingresar
                           </strong>
 
                           <p>
@@ -489,6 +600,37 @@ export function DevicesPanel() {
                           </p>
                         </div>
                       )}
+
+                      {canDelete && (
+                        <div className="repair-danger-zone">
+                          <div>
+                            <strong>
+                              Eliminar
+                              equipo
+                            </strong>
+
+                            <span>
+                              Solo puede
+                              eliminarse si
+                              no tiene
+                              reparaciones
+                              asociadas.
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() =>
+                              setDeviceToDelete(
+                                device,
+                              )
+                            }
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
                     </article>
                   ),
                 )}
@@ -496,6 +638,24 @@ export function DevicesPanel() {
             )}
         </section>
       </div>
+
+      {deviceToDelete && (
+        <ConfirmDeleteModal
+          title="Eliminar equipo"
+          description={`${deviceToDelete.brand} ${deviceToDelete.model} · ${deviceToDelete.client.firstName} ${deviceToDelete.client.lastName}`}
+          confirmLabel="Eliminar equipo"
+          loading={
+            deletingDeviceId ===
+            deviceToDelete.id
+          }
+          onCancel={() =>
+            setDeviceToDelete(null)
+          }
+          onConfirm={() =>
+            void handleDeleteDevice()
+          }
+        />
+      )}
     </>
   );
 }

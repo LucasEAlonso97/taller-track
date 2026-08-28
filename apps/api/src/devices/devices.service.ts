@@ -1,20 +1,28 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../database/prisma.service';
+
 import type { CreateDeviceDto } from './dto/create-device.dto';
 
 @Injectable()
 export class DevicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async create(createDeviceDto: CreateDeviceDto) {
-    const client = await this.prisma.client.findUnique({
-      where: {
-        id: createDeviceDto.clientId,
-      },
-    });
+  async create(
+    createDeviceDto: CreateDeviceDto,
+  ) {
+    const client =
+      await this.prisma.client.findUnique({
+        where: {
+          id: createDeviceDto.clientId,
+        },
+      });
 
     if (!client) {
       throw new NotFoundException(
@@ -30,6 +38,7 @@ export class DevicesService {
     return this.prisma.device.create({
       data: {
         ...deviceData,
+
         client: {
           connect: {
             id: clientId,
@@ -56,15 +65,16 @@ export class DevicesService {
   }
 
   async findOne(id: string) {
-    const device = await this.prisma.device.findUnique({
-      where: {
-        id,
-      },
+    const device =
+      await this.prisma.device.findUnique({
+        where: {
+          id,
+        },
 
-      include: {
-        client: true,
-      },
-    });
+        include: {
+          client: true,
+        },
+      });
 
     if (!device) {
       throw new NotFoundException(
@@ -73,5 +83,58 @@ export class DevicesService {
     }
 
     return device;
+  }
+
+  async remove(id: string) {
+    const device =
+      await this.prisma.device.findUnique({
+        where: {
+          id,
+        },
+
+        select: {
+          id: true,
+          type: true,
+          brand: true,
+          model: true,
+
+          _count: {
+            select: {
+              repairOrders: true,
+            },
+          },
+        },
+      });
+
+    if (!device) {
+      throw new NotFoundException(
+        `No se encontró un equipo con el id ${id}`,
+      );
+    }
+
+    if (
+      device._count.repairOrders > 0
+    ) {
+      throw new BadRequestException(
+        `No se puede eliminar este equipo porque tiene ${device._count.repairOrders} ${
+          device._count.repairOrders === 1
+            ? 'reparación asociada'
+            : 'reparaciones asociadas'
+        }.`,
+      );
+    }
+
+    await this.prisma.device.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      message:
+        'Equipo eliminado correctamente.',
+      id: device.id,
+      device: `${device.brand} ${device.model}`,
+    };
   }
 }

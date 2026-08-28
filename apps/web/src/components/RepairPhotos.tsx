@@ -4,9 +4,11 @@ import {
 } from 'react';
 
 import { AuthenticatedImage } from './AuthenticatedImage';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 
 import {
   addRepairPhotos,
+  deleteRepairPhoto,
   getRepairPhotoUrl,
 } from '../services/repair-orders';
 
@@ -17,28 +19,59 @@ import type {
 
 interface RepairPhotosProps {
   repairOrderId: string;
+
   photos: RepairPhoto[];
+
+  canDelete?: boolean;
+
   onOrderUpdated: (
     order: RepairOrder,
+  ) => void;
+
+  onPhotoDeleted?: (
+    photoId: string,
   ) => void;
 }
 
 export function RepairPhotos({
   repairOrderId,
   photos,
+  canDelete = false,
   onOrderUpdated,
+  onPhotoDeleted,
 }: RepairPhotosProps) {
-  const [selectedFiles, setSelectedFiles] =
-    useState<File[]>([]);
+  const [
+    selectedFiles,
+    setSelectedFiles,
+  ] = useState<File[]>([]);
 
-  const [uploading, setUploading] =
-    useState(false);
+  const [
+    uploading,
+    setUploading,
+  ] = useState(false);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(null);
+
+  const [
+    photoToDelete,
+    setPhotoToDelete,
+  ] = useState<RepairPhoto | null>(
+    null,
+  );
+
+  const [
+    deletingPhotoId,
+    setDeletingPhotoId,
+  ] = useState<string | null>(null);
 
   const remainingPhotos =
-    Math.max(0, 6 - photos.length);
+    Math.max(
+      0,
+      6 - photos.length,
+    );
 
   const handleFileChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -49,14 +82,20 @@ export function RepairPhotos({
 
     setError(null);
 
-    if (files.length > remainingPhotos) {
+    if (
+      files.length >
+      remainingPhotos
+    ) {
       setError(
         `Solo podés agregar ${remainingPhotos} foto${
-          remainingPhotos === 1 ? '' : 's'
+          remainingPhotos === 1
+            ? ''
+            : 's'
         } más.`,
       );
 
       event.target.value = '';
+
       setSelectedFiles([]);
 
       return;
@@ -67,7 +106,9 @@ export function RepairPhotos({
 
   const handleUpload =
     async (): Promise<void> => {
-      if (selectedFiles.length === 0) {
+      if (
+        selectedFiles.length === 0
+      ) {
         return;
       }
 
@@ -81,7 +122,10 @@ export function RepairPhotos({
             selectedFiles,
           );
 
-        onOrderUpdated(updatedOrder);
+        onOrderUpdated(
+          updatedOrder,
+        );
+
         setSelectedFiles([]);
       } catch (error) {
         setError(
@@ -94,6 +138,45 @@ export function RepairPhotos({
       }
     };
 
+  const handleDeletePhoto =
+    async (): Promise<void> => {
+      if (!photoToDelete) {
+        return;
+      }
+
+      const photoId =
+        photoToDelete.id;
+
+      try {
+        setDeletingPhotoId(
+          photoId,
+        );
+
+        setError(null);
+
+        await deleteRepairPhoto(
+          repairOrderId,
+          photoId,
+        );
+
+        onPhotoDeleted?.(
+          photoId,
+        );
+
+        setPhotoToDelete(null);
+      } catch (error) {
+        setPhotoToDelete(null);
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar la foto.',
+        );
+      } finally {
+        setDeletingPhotoId(null);
+      }
+    };
+
   return (
     <section className="repair-photos">
       <div className="repair-photos-header">
@@ -102,7 +185,9 @@ export function RepairPhotos({
             Uso interno
           </span>
 
-          <h4>Fotos del equipo</h4>
+          <h4>
+            Fotos del equipo
+          </h4>
         </div>
 
         <span className="repair-photos-count">
@@ -112,30 +197,54 @@ export function RepairPhotos({
 
       {photos.length > 0 ? (
         <div className="repair-photo-grid">
-          {photos.map((photo) => (
-            <div
-              key={photo.id}
-              className="repair-photo-item"
-              title={photo.originalName}
-            >
-              <AuthenticatedImage
-                src={getRepairPhotoUrl(
-                  repairOrderId,
-                  photo.id,
-                )}
-                alt={photo.originalName}
-              />
+          {photos.map(
+            (photo) => (
+              <div
+                key={photo.id}
+                className="repair-photo-item"
+                title={
+                  photo.originalName
+                }
+              >
+                <AuthenticatedImage
+                  src={getRepairPhotoUrl(
+                    repairOrderId,
+                    photo.id,
+                  )}
+                  alt={
+                    photo.originalName
+                  }
+                />
 
-              <span>
-                {photo.originalName}
-              </span>
-            </div>
-          ))}
+                <span>
+                  {
+                    photo.originalName
+                  }
+                </span>
+
+                {canDelete && (
+                  <button
+                    type="button"
+                    className="repair-photo-delete"
+                    title="Eliminar foto"
+                    aria-label={`Eliminar ${photo.originalName}`}
+                    onClick={() =>
+                      setPhotoToDelete(
+                        photo,
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ),
+          )}
         </div>
       ) : (
         <p className="repair-photos-empty">
-          Todavía no se cargaron fotos del
-          equipo.
+          Todavía no se cargaron
+          fotos del equipo.
         </p>
       )}
 
@@ -148,15 +257,23 @@ export function RepairPhotos({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              disabled={uploading}
-              onChange={handleFileChange}
+              disabled={
+                uploading
+              }
+              onChange={
+                handleFileChange
+              }
             />
           </label>
 
-          {selectedFiles.length > 0 && (
+          {selectedFiles.length >
+            0 && (
             <span className="repair-photo-selected">
-              {selectedFiles.length}{' '}
-              {selectedFiles.length === 1
+              {
+                selectedFiles.length
+              }{' '}
+              {selectedFiles.length ===
+              1
                 ? 'foto seleccionada'
                 : 'fotos seleccionadas'}
             </span>
@@ -167,7 +284,8 @@ export function RepairPhotos({
             className="secondary-button"
             disabled={
               uploading ||
-              selectedFiles.length === 0
+              selectedFiles.length ===
+                0
             }
             onClick={() => {
               void handleUpload();
@@ -182,7 +300,8 @@ export function RepairPhotos({
 
       {remainingPhotos === 0 && (
         <p className="repair-photo-limit">
-          Alcanzaste el máximo de 6 fotos.
+          Alcanzaste el máximo de 6
+          fotos.
         </p>
       )}
 
@@ -190,6 +309,26 @@ export function RepairPhotos({
         <p className="repair-photo-error">
           {error}
         </p>
+      )}
+
+      {photoToDelete && (
+        <ConfirmDeleteModal
+          title="Eliminar foto"
+          description={
+            photoToDelete.originalName
+          }
+          confirmLabel="Eliminar foto"
+          loading={
+            deletingPhotoId ===
+            photoToDelete.id
+          }
+          onCancel={() =>
+            setPhotoToDelete(null)
+          }
+          onConfirm={() =>
+            void handleDeletePhoto()
+          }
+        />
       )}
     </section>
   );

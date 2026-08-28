@@ -1,10 +1,13 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import {
   QuoteStatus,
@@ -21,6 +24,9 @@ import type { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
 
 @Injectable()
 export class RepairOrdersService {
+  private readonly logger =
+    new Logger(RepairOrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
   ) {}
@@ -128,6 +134,49 @@ export class RepairOrdersService {
     }
 
     return photo;
+  }
+
+    async removePhoto(
+    repairOrderId: string,
+    photoId: string,
+  ) {
+    const photo = await this.getPhoto(
+      repairOrderId,
+      photoId,
+    );
+
+    await this.prisma.repairPhoto.delete({
+      where: {
+        id: photo.id,
+      },
+    });
+
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'repair-photos',
+      photo.storageKey,
+    );
+
+    try {
+      await rm(filePath, {
+        force: true,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo eliminar la foto ${photo.storageKey}: ${
+          error instanceof Error
+            ? error.message
+            : 'error desconocido'
+        }`,
+      );
+    }
+
+    return {
+      message:
+        'Foto eliminada correctamente.',
+      id: photo.id,
+    };
   }
 
   async create(
@@ -282,6 +331,72 @@ export class RepairOrdersService {
     }
 
     return repairOrder;
+  }
+
+  async remove(id: string) {
+    const repairOrder =
+      await this.prisma.repairOrder.findUnique({
+        where: {
+          id,
+        },
+
+        select: {
+          id: true,
+          code: true,
+
+          photos: {
+            select: {
+              storageKey: true,
+            },
+          },
+        },
+      });
+
+    if (!repairOrder) {
+      throw new NotFoundException(
+        `No se encontró una orden con el id ${id}`,
+      );
+    }
+
+    await this.prisma.repairOrder.delete({
+      where: {
+        id,
+      },
+    });
+
+    await Promise.all(
+      repairOrder.photos.map(
+        async (photo) => {
+          const filePath = join(
+            process.cwd(),
+            'uploads',
+            'repair-photos',
+            photo.storageKey,
+          );
+
+          try {
+            await rm(filePath, {
+              force: true,
+            });
+          } catch (error) {
+            this.logger.warn(
+              `No se pudo eliminar la foto ${photo.storageKey}: ${
+                error instanceof Error
+                  ? error.message
+                  : 'error desconocido'
+              }`,
+            );
+          }
+        },
+      ),
+    );
+
+    return {
+      message:
+        'Reparación eliminada correctamente.',
+      id: repairOrder.id,
+      code: repairOrder.code,
+    };
   }
 
   async updateStatus(

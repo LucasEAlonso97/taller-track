@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { RepairReceipt } from './RepairReceipt';
 import { SearchInput } from './SearchInput';
 import { TrackingShareActions } from './TrackingShareActions';
@@ -16,6 +17,7 @@ import { getDevices } from '../services/devices';
 
 import {
   createRepairOrder,
+  deleteRepairOrder,
   getRepairOrders,
   updateRepairDiagnosis,
   updateRepairOrderStatus,
@@ -71,10 +73,12 @@ const statuses = Object.keys(
 
 interface RepairOrdersPanelProps {
   initialFilter?: RepairFilter;
+  canDelete?: boolean;
 }
 
 export function RepairOrdersPanel({
   initialFilter = 'ALL',
+  canDelete = false,
 }: RepairOrdersPanelProps) {
   const [orders, setOrders] =
     useState<RepairOrder[]>([]);
@@ -90,7 +94,8 @@ export function RepairOrdersPanel({
   const [statusFilter, setStatusFilter] =
     useState<RepairFilter>(initialFilter);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] =
+    useState('');
 
   const [
     expandedOrderId,
@@ -155,6 +160,16 @@ export function RepairOrdersPanel({
     receiptOrder,
     setReceiptOrder,
   ] = useState<RepairOrder | null>(null);
+
+  const [
+    orderToDelete,
+    setOrderToDelete,
+  ] = useState<RepairOrder | null>(null);
+
+  const [
+    deletingOrderId,
+    setDeletingOrderId,
+  ] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData =
@@ -267,7 +282,6 @@ export function RepairOrdersPanel({
           ?.toLowerCase()
           .includes(query) ?? false;
 
-
       return (
         order.code
           .toLowerCase()
@@ -289,6 +303,28 @@ export function RepairOrdersPanel({
     search,
   ]);
 
+  const handlePhotoDeleted = (
+  orderId: string,
+  photoId: string,
+): void => {
+  setOrders((current) =>
+    current.map((order) =>
+      order.id === orderId
+        ? {
+            ...order,
+
+            photos:
+              order.photos.filter(
+                (photo) =>
+                  photo.id !==
+                  photoId,
+              ),
+          }
+        : order,
+    ),
+  );
+};
+
   const handleOrderUpdated = (
     updatedOrder: RepairOrder,
   ): void => {
@@ -303,9 +339,9 @@ export function RepairOrdersPanel({
 
   const handleChange = (
     event: ChangeEvent<
-      HTMLSelectElement |
-      HTMLInputElement |
-      HTMLTextAreaElement
+      | HTMLSelectElement
+      | HTMLInputElement
+      | HTMLTextAreaElement
     >,
   ): void => {
     const { name, value } =
@@ -465,8 +501,7 @@ export function RepairOrdersPanel({
     );
 
     setQuoteDescriptionDraft(
-      order.quote?.description ??
-        '',
+      order.quote?.description ?? '',
     );
   };
 
@@ -564,6 +599,68 @@ export function RepairOrdersPanel({
       setRespondingQuoteId(null);
     }
   };
+
+  const handleDeleteOrder =
+    async (): Promise<void> => {
+      if (!orderToDelete) {
+        return;
+      }
+
+      const orderId = orderToDelete.id;
+
+      try {
+        setDeletingOrderId(orderId);
+        setError(null);
+
+        await deleteRepairOrder(
+          orderId,
+        );
+
+        setOrders((current) =>
+          current.filter(
+            (order) =>
+              order.id !== orderId,
+          ),
+        );
+
+        if (
+          expandedOrderId === orderId
+        ) {
+          setExpandedOrderId(null);
+        }
+
+        if (
+          editingDiagnosisId === orderId
+        ) {
+          setEditingDiagnosisId(null);
+          setDiagnosisDraft('');
+        }
+
+        if (
+          editingQuoteId === orderId
+        ) {
+          setEditingQuoteId(null);
+          setQuoteAmountDraft('');
+          setQuoteDescriptionDraft('');
+        }
+
+        if (
+          receiptOrder?.id === orderId
+        ) {
+          setReceiptOrder(null);
+        }
+
+        setOrderToDelete(null);
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo eliminar la reparación.',
+        );
+      } finally {
+        setDeletingOrderId(null);
+      }
+    };
 
   const formatCurrency = (
     amount: number,
@@ -985,60 +1082,62 @@ export function RepairOrdersPanel({
                                 </button>
                               </div>
                             </div>
-                   ) : (
-  <>
-    <p
-      className={
-        order.diagnosis
-          ? 'diagnosis-text'
-          : 'diagnosis-empty'
-      }
-    >
-      {order.diagnosis ??
-        'Todavía no se cargó un diagnóstico.'}
-    </p>
+                          ) : (
+                            <>
+                              <p
+                                className={
+                                  order.diagnosis
+                                    ? 'diagnosis-text'
+                                    : 'diagnosis-empty'
+                                }
+                              >
+                                {order.diagnosis ??
+                                  'Todavía no se cargó un diagnóstico.'}
+                              </p>
 
-    {order.diagnosisUpdatedAt && (
-      <div className="trace-meta">
-        {order.diagnosisUpdatedBy && (
-          <>
-            <span>
-              Actualizado por{' '}
-            </span>
+                              {order.diagnosisUpdatedAt && (
+                                <div className="trace-meta">
+                                  {order.diagnosisUpdatedBy && (
+                                    <>
+                                      <span>
+                                        Actualizado por{' '}
+                                      </span>
 
-            <strong>
-              {
-                order
-                  .diagnosisUpdatedBy
-                  .name
-              }
-            </strong>
+                                      <strong>
+                                        {
+                                          order
+                                            .diagnosisUpdatedBy
+                                            .name
+                                        }
+                                      </strong>
 
-            <span>
-              {' · '}
-            </span>
-          </>
-        )}
+                                      <span>
+                                        {' · '}
+                                      </span>
+                                    </>
+                                  )}
 
-        <time
-          dateTime={
-            order.diagnosisUpdatedAt
-          }
-        >
-          {new Date(
-            order.diagnosisUpdatedAt,
-          ).toLocaleString(
-            'es-AR',
-            {
-              dateStyle: 'short',
-              timeStyle: 'short',
-            },
-          )}
-        </time>
-      </div>
-    )}
-  </>
-)}
+                                  <time
+                                    dateTime={
+                                      order.diagnosisUpdatedAt
+                                    }
+                                  >
+                                    {new Date(
+                                      order.diagnosisUpdatedAt,
+                                    ).toLocaleString(
+                                      'es-AR',
+                                      {
+                                        dateStyle:
+                                          'short',
+                                        timeStyle:
+                                          'short',
+                                      },
+                                    )}
+                                  </time>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
 
                         <div className="quote-section">
@@ -1173,20 +1272,23 @@ export function RepairOrdersPanel({
                                     .amount,
                                 )}
                               </strong>
-                                {order.quote.updatedBy && (
-  <div className="trace-meta">
-    <span>
-      Presupuesto cargado por{' '}
-    </span>
 
-    <strong>
-      {
-        order.quote
-          .updatedBy.name
-      }
-    </strong>
-  </div>
-)}
+                              {order.quote.updatedBy && (
+                                <div className="trace-meta">
+                                  <span>
+                                    Presupuesto cargado por{' '}
+                                  </span>
+
+                                  <strong>
+                                    {
+                                      order.quote
+                                        .updatedBy
+                                        .name
+                                    }
+                                  </strong>
+                                </div>
+                              )}
+
                               {order.quote
                                 .description && (
                                 <p>
@@ -1268,18 +1370,33 @@ export function RepairOrdersPanel({
                         </div>
 
                         <RepairInternalNotes
-                          repairOrderId={order.id}
-                          notes={order.internalNotes}
+                          repairOrderId={
+                            order.id
+                          }
+                          notes={
+                            order.internalNotes
+                          }
                           onOrderUpdated={
                             handleOrderUpdated
                           }
                         />
 
-                         <RepairPhotos
-                          repairOrderId={order.id}
-                          photos={order.photos}
-                           onOrderUpdated={handleOrderUpdated}
-                        />
+                       <RepairPhotos
+  repairOrderId={order.id}
+  photos={order.photos}
+  canDelete={canDelete}
+  onOrderUpdated={
+    handleOrderUpdated
+  }
+  onPhotoDeleted={(
+    photoId,
+  ) =>
+    handlePhotoDeleted(
+      order.id,
+      photoId,
+    )
+  }
+/>
 
                         {order.estimatedCompletionDate && (
                           <p className="repair-estimated">
@@ -1412,36 +1529,40 @@ export function RepairOrdersPanel({
 
                                         <div className="timeline-content">
                                           <strong>
-  {
-    statusLabels[
-      historyItem.status
-    ]
-  }
-</strong>
+                                            {
+                                              statusLabels[
+                                                historyItem
+                                                  .status
+                                              ]
+                                            }
+                                          </strong>
 
-<span>
-  {new Date(
-    historyItem.createdAt,
-  ).toLocaleString(
-    'es-AR',
-    {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    },
-  )}
-</span>
+                                          <span>
+                                            {new Date(
+                                              historyItem.createdAt,
+                                            ).toLocaleString(
+                                              'es-AR',
+                                              {
+                                                dateStyle:
+                                                  'short',
+                                                timeStyle:
+                                                  'short',
+                                              },
+                                            )}
+                                          </span>
 
-{historyItem.changedBy && (
-  <small className="timeline-user">
-    Por{' '}
-    <strong>
-      {
-        historyItem
-          .changedBy.name
-      }
-    </strong>
-  </small>
-)}
+                                          {historyItem.changedBy && (
+                                            <small className="timeline-user">
+                                              Por{' '}
+                                              <strong>
+                                                {
+                                                  historyItem
+                                                    .changedBy
+                                                    .name
+                                                }
+                                              </strong>
+                                            </small>
+                                          )}
                                         </div>
                                       </div>
                                     );
@@ -1456,18 +1577,26 @@ export function RepairOrdersPanel({
                               )}
                             </div>
                           )}
+
                           <TrackingShareActions
                             trackingToken={
                               order.trackingToken
                             }
-                            orderCode={order.code}
+                            orderCode={
+                              order.code
+                            }
                             clientPhone={
-                              order.device.client.phone
+                              order.device
+                                .client
+                                .phone
                             }
                             deviceName={`${order.device.brand} ${order.device.model}`}
-                            status={order.status}
+                            status={
+                              order.status
+                            }
                             quoteAmount={
-                              order.quote?.amount
+                              order.quote
+                                ?.amount
                             }
                           />
 
@@ -1475,29 +1604,84 @@ export function RepairOrdersPanel({
                             type="button"
                             className="secondary-button"
                             onClick={() =>
-                              setReceiptOrder(order)
+                              setReceiptOrder(
+                                order,
+                              )
                             }
                           >
                             Comprobante
                           </button>
                         </div>
+
+                        {canDelete && (
+                          <div className="repair-danger-zone">
+                            <div>
+                              <strong>
+                                Eliminar
+                                reparación
+                              </strong>
+
+                              <span>
+                                Elimina
+                                permanentemente
+                                esta orden y su
+                                historial
+                                asociado.
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="danger-button"
+                              onClick={() =>
+                                setOrderToDelete(
+                                  order,
+                                )
+                              }
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
                       </article>
                     );
                   },
-                  
                 )}
-                
               </div>
             )}
-            
         </section>
-        
       </div>
+
       {receiptOrder && (
         <RepairReceipt
           order={receiptOrder}
           onClose={() =>
             setReceiptOrder(null)
+          }
+        />
+      )}
+
+      {orderToDelete && (
+        <ConfirmDeleteModal
+          title="Eliminar reparación"
+          description={`${orderToDelete.code} · ${orderToDelete.device.brand} ${orderToDelete.device.model}`}
+          details={[
+            'Diagnóstico técnico',
+            'Presupuesto',
+            'Historial de estados',
+            'Notas internas',
+            'Fotografías asociadas',
+          ]}
+          confirmLabel="Eliminar reparación"
+          loading={
+            deletingOrderId ===
+            orderToDelete.id
+          }
+          onCancel={() =>
+            setOrderToDelete(null)
+          }
+          onConfirm={() =>
+            void handleDeleteOrder()
           }
         />
       )}

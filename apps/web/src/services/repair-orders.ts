@@ -251,3 +251,77 @@ export async function updateRepairQuoteStatus(
 
   return response.json() as Promise<RepairOrder>;
 }
+
+export interface DeleteRepairOrderResponse {
+  message: string;
+  id: string;
+  code: string;
+}
+
+export async function deleteRepairOrder(
+  id: string,
+): Promise<DeleteRepairOrderResponse> {
+  const response = await apiFetch(
+    `${API_URL}/repair-orders/${id}`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  if (!response.ok) {
+    const data = (await response
+      .json()
+      .catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+
+    const message = Array.isArray(data?.message)
+      ? data.message.join(', ')
+      : data?.message;
+
+    throw new Error(
+      message ??
+        'No se pudo eliminar la reparación.',
+    );
+  }
+
+  return response.json() as Promise<DeleteRepairOrderResponse>;
+}
+
+export interface DeleteRepairPhotoResponse {
+  message: string;
+  id: string;
+}
+
+export async function deleteRepairPhoto(
+  repairOrderId: string,
+  photoId: string,
+): Promise<DeleteRepairPhotoResponse> {
+  const response = await apiFetch(
+    `${API_URL}/repair-orders/${repairOrderId}/photos/${photoId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  if (!response.ok) {
+    const data = (await response
+      .json()
+      .catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+
+    const message = Array.isArray(
+      data?.message,
+    )
+      ? data.message.join(', ')
+      : data?.message;
+
+    throw new Error(
+      message ??
+        'No se pudo eliminar la foto.',
+    );
+  }
+
+  return response.json() as Promise<DeleteRepairPhotoResponse>;
+}

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -21,6 +22,8 @@ import {
 } from 'fs';
 
 import { join } from 'path';
+
+import { Roles } from '../auth/decorators/roles.decorator';
 
 import type { AuthenticatedRequest } from '../auth/guards/auth.guard';
 
@@ -217,4 +220,29 @@ export class RepairOrdersController {
       },
     );
   }
+
+  @Roles('ADMIN')
+  @Delete(':id')
+  remove(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+  ) {
+    return this.repairOrdersService.remove(id);
+  }
+
+    @Roles('ADMIN')
+  @Delete(':id/photos/:photoId')
+  removePhoto(
+    @Param('id', new ParseUUIDPipe())
+    id: string,
+
+    @Param('photoId', new ParseUUIDPipe())
+    photoId: string,
+  ) {
+    return this.repairOrdersService.removePhoto(
+      id,
+      photoId,
+    );
+  }
 }
+
