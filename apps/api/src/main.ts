@@ -28,9 +28,14 @@ async function bootstrap(): Promise<void> {
     origin: frontendUrl,
   });
 
-  await app.listen(port);
+  await app.listen(
+  port,
+  '0.0.0.0',
+);
 
-  console.log(`API disponible en http://localhost:${port}/api`);
+  console.log(
+  `API disponible en puerto ${port}`,
+);
 }
 
 void bootstrap();
