@@ -1,27 +1,10 @@
-import { BadRequestException } from '@nestjs/common';
-
-import { randomUUID } from 'crypto';
+import {
+  BadRequestException,
+} from '@nestjs/common';
 
 import {
-  existsSync,
-  mkdirSync,
-} from 'fs';
-
-import { extname, join } from 'path';
-
-import { diskStorage } from 'multer';
-
-const uploadDirectory = join(
-  process.cwd(),
-  'uploads',
-  'repair-photos',
-);
-
-if (!existsSync(uploadDirectory)) {
-  mkdirSync(uploadDirectory, {
-    recursive: true,
-  });
-}
+  memoryStorage,
+} from 'multer';
 
 const allowedMimeTypes = [
   'image/jpeg',
@@ -30,30 +13,11 @@ const allowedMimeTypes = [
 ];
 
 export const repairPhotoUploadOptions = {
-  storage: diskStorage({
-    destination: uploadDirectory,
-
-    filename: (
-      _request: Express.Request,
-      file: Express.Multer.File,
-      callback: (
-        error: Error | null,
-        filename: string,
-      ) => void,
-    ): void => {
-      const extension = extname(
-        file.originalname,
-      ).toLowerCase();
-
-      callback(
-        null,
-        `${randomUUID()}${extension}`,
-      );
-    },
-  }),
+  storage: memoryStorage(),
 
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize:
+      5 * 1024 * 1024,
   },
 
   fileFilter: (

@@ -5,40 +5,130 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { randomBytes } from 'node:crypto';
-import { rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  randomBytes,
+} from 'node:crypto';
+
+import {
+  rm,
+} from 'node:fs/promises';
+
+import {
+  join,
+} from 'node:path';
 
 import {
   QuoteStatus,
   RepairStatus,
 } from '../generated/prisma/enums';
 
-import { PrismaService } from '../database/prisma.service';
+import {
+  PrismaService,
+} from '../database/prisma.service';
 
-import type { CreateRepairOrderDto } from './dto/create-repair-order.dto';
-import type { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
-import type { UpdateRepairDiagnosisDto } from './dto/update-repair-diagnosis.dto';
-import type { UpdateRepairQuoteDto } from './dto/update-repair-quote.dto';
-import type { UpdateRepairStatusDto } from './dto/update-repair-status.dto';
+import {
+  CloudinaryService,
+} from '../storage/cloudinary.service';
+
+import type {
+  CreateRepairOrderDto,
+} from './dto/create-repair-order.dto';
+
+import type {
+  UpdateQuoteStatusDto,
+} from './dto/update-quote-status.dto';
+
+import type {
+  UpdateRepairDiagnosisDto,
+} from './dto/update-repair-diagnosis.dto';
+
+import type {
+  UpdateRepairQuoteDto,
+} from './dto/update-repair-quote.dto';
+
+import type {
+  UpdateRepairStatusDto,
+} from './dto/update-repair-status.dto';
 
 @Injectable()
 export class RepairOrdersService {
   private readonly logger =
-    new Logger(RepairOrdersService.name);
+    new Logger(
+      RepairOrdersService.name,
+    );
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma:
+      PrismaService,
+
+    private readonly cloudinary:
+      CloudinaryService,
   ) {}
 
   private generateCode(): string {
-    const year = new Date().getFullYear();
+    const year =
+      new Date().getFullYear();
 
-    const suffix = randomBytes(3)
-      .toString('hex')
-      .toUpperCase();
+    const suffix =
+      randomBytes(3)
+        .toString('hex')
+        .toUpperCase();
 
     return `TT-${year}-${suffix}`;
+  }
+
+  private isCloudinaryPhoto(
+    storageKey: string,
+  ): boolean {
+    return storageKey.startsWith(
+      'tallertrack/repair-photos/',
+    );
+  }
+
+  getPhotoUrl(
+    storageKey: string,
+  ): string | null {
+    if (
+      !this.isCloudinaryPhoto(
+        storageKey,
+      )
+    ) {
+      return null;
+    }
+
+    return this.cloudinary.getImageUrl(
+      storageKey,
+    );
+  }
+
+  private async deleteStoredPhoto(
+    storageKey: string,
+  ): Promise<void> {
+    if (
+      this.isCloudinaryPhoto(
+        storageKey,
+      )
+    ) {
+      await this.cloudinary.deleteImage(
+        storageKey,
+      );
+
+      return;
+    }
+
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'repair-photos',
+      storageKey,
+    );
+
+    await rm(
+      filePath,
+      {
+        force: true,
+      },
+    );
   }
 
   private readonly fullOrderInclude = {
@@ -58,7 +148,8 @@ export class RepairOrdersService {
 
     internalNotes: {
       orderBy: {
-        createdAt: 'desc' as const,
+        createdAt:
+          'desc' as const,
       },
 
       include: {
@@ -74,13 +165,15 @@ export class RepairOrdersService {
 
     photos: {
       orderBy: {
-        createdAt: 'desc' as const,
+        createdAt:
+          'desc' as const,
       },
     },
 
     statusHistory: {
       orderBy: {
-        createdAt: 'asc' as const,
+        createdAt:
+          'asc' as const,
       },
 
       include: {
@@ -120,12 +213,13 @@ export class RepairOrdersService {
     photoId: string,
   ) {
     const photo =
-      await this.prisma.repairPhoto.findFirst({
-        where: {
-          id: photoId,
-          repairOrderId,
-        },
-      });
+      await this.prisma.repairPhoto
+        .findFirst({
+          where: {
+            id: photoId,
+            repairOrderId,
+          },
+        });
 
     if (!photo) {
       throw new NotFoundException(
@@ -136,14 +230,15 @@ export class RepairOrdersService {
     return photo;
   }
 
-    async removePhoto(
+  async removePhoto(
     repairOrderId: string,
     photoId: string,
   ) {
-    const photo = await this.getPhoto(
-      repairOrderId,
-      photoId,
-    );
+    const photo =
+      await this.getPhoto(
+        repairOrderId,
+        photoId,
+      );
 
     await this.prisma.repairPhoto.delete({
       where: {
@@ -151,17 +246,10 @@ export class RepairOrdersService {
       },
     });
 
-    const filePath = join(
-      process.cwd(),
-      'uploads',
-      'repair-photos',
-      photo.storageKey,
-    );
-
     try {
-      await rm(filePath, {
-        force: true,
-      });
+      await this.deleteStoredPhoto(
+        photo.storageKey,
+      );
     } catch (error) {
       this.logger.warn(
         `No se pudo eliminar la foto ${photo.storageKey}: ${
@@ -175,17 +263,21 @@ export class RepairOrdersService {
     return {
       message:
         'Foto eliminada correctamente.',
+
       id: photo.id,
     };
   }
 
   async create(
-    createRepairOrderDto: CreateRepairOrderDto,
+    createRepairOrderDto:
+      CreateRepairOrderDto,
   ) {
     const device =
       await this.prisma.device.findUnique({
         where: {
-          id: createRepairOrderDto.deviceId,
+          id:
+            createRepairOrderDto
+              .deviceId,
         },
       });
 
@@ -195,7 +287,8 @@ export class RepairOrdersService {
       );
     }
 
-    const code = this.generateCode();
+    const code =
+      this.generateCode();
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -205,7 +298,8 @@ export class RepairOrdersService {
               code,
 
               reportedIssue:
-                createRepairOrderDto.reportedIssue,
+                createRepairOrderDto
+                  .reportedIssue,
 
               estimatedCompletionDate:
                 createRepairOrderDto
@@ -218,60 +312,73 @@ export class RepairOrdersService {
 
               device: {
                 connect: {
-                  id: createRepairOrderDto.deviceId,
+                  id:
+                    createRepairOrderDto
+                      .deviceId,
                 },
               },
             },
           });
 
-        await tx.repairStatusHistory.create({
-          data: {
-            repairOrderId: repairOrder.id,
-            status: repairOrder.status,
-          },
-        });
+        await tx.repairStatusHistory
+          .create({
+            data: {
+              repairOrderId:
+                repairOrder.id,
 
-        return tx.repairOrder.findUniqueOrThrow({
-          where: {
-            id: repairOrder.id,
-          },
+              status:
+                repairOrder.status,
+            },
+          });
 
-          include: this.fullOrderInclude,
-        });
+        return tx.repairOrder
+          .findUniqueOrThrow({
+            where: {
+              id:
+                repairOrder.id,
+            },
+
+            include:
+              this.fullOrderInclude,
+          });
       },
     );
   }
 
   findAll() {
-    return this.prisma.repairOrder.findMany({
-      include: this.fullOrderInclude,
+    return this.prisma.repairOrder
+      .findMany({
+        include:
+          this.fullOrderInclude,
 
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
   }
 
   async addPhotos(
     repairOrderId: string,
-    files: Express.Multer.File[],
+    files:
+      Express.Multer.File[],
   ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id: repairOrderId,
-        },
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id: repairOrderId,
+          },
 
-        select: {
-          id: true,
+          select: {
+            id: true,
 
-          _count: {
-            select: {
-              photos: true,
+            _count: {
+              select: {
+                photos: true,
+              },
             },
           },
-        },
-      });
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -289,40 +396,102 @@ export class RepairOrdersService {
       );
     }
 
-    if (files.length === 0) {
+    if (
+      files.length === 0
+    ) {
       throw new BadRequestException(
         'Tenés que seleccionar al menos una foto.',
       );
     }
 
-    await this.prisma.repairPhoto.createMany({
-      data: files.map((file) => ({
-        repairOrderId,
-        storageKey: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-      })),
-    });
+    const uploadedPhotos: Array<{
+      publicId: string;
 
-    return this.prisma.repairOrder.findUnique({
-      where: {
-        id: repairOrderId,
-      },
+      file:
+        Express.Multer.File;
+    }> = [];
 
-      include: this.fullOrderInclude,
-    });
-  }
+    try {
+      for (
+        const file of files
+      ) {
+        const uploaded =
+          await this.cloudinary
+            .uploadImage(
+              file,
+            );
 
-  async findOne(id: string) {
-    const repairOrder =
-      await this.prisma.repairOrder.findUnique({
+        uploadedPhotos.push({
+          publicId:
+            uploaded.publicId,
+
+          file,
+        });
+      }
+
+      await this.prisma.repairPhoto
+        .createMany({
+          data:
+            uploadedPhotos.map(
+              ({
+                publicId,
+                file,
+              }) => ({
+                repairOrderId,
+
+                storageKey:
+                  publicId,
+
+                originalName:
+                  file.originalname,
+
+                mimeType:
+                  file.mimetype,
+
+                size:
+                  file.size,
+              }),
+            ),
+        });
+    } catch (error) {
+      await Promise.allSettled(
+        uploadedPhotos.map(
+          ({ publicId }) =>
+            this.cloudinary
+              .deleteImage(
+                publicId,
+              ),
+        ),
+      );
+
+      throw error;
+    }
+
+    return this.prisma.repairOrder
+      .findUnique({
         where: {
-          id,
+          id:
+            repairOrderId,
         },
 
-        include: this.fullOrderInclude,
+        include:
+          this.fullOrderInclude,
       });
+  }
+
+  async findOne(
+    id: string,
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
+
+          include:
+            this.fullOrderInclude,
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -333,24 +502,28 @@ export class RepairOrdersService {
     return repairOrder;
   }
 
-  async remove(id: string) {
+  async remove(
+    id: string,
+  ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id,
-        },
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
 
-        select: {
-          id: true,
-          code: true,
+          select: {
+            id: true,
+            code: true,
 
-          photos: {
-            select: {
-              storageKey: true,
+            photos: {
+              select: {
+                storageKey:
+                  true,
+              },
             },
           },
-        },
-      });
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -358,26 +531,21 @@ export class RepairOrdersService {
       );
     }
 
-    await this.prisma.repairOrder.delete({
-      where: {
-        id,
-      },
-    });
+    await this.prisma.repairOrder
+      .delete({
+        where: {
+          id,
+        },
+      });
 
     await Promise.all(
       repairOrder.photos.map(
         async (photo) => {
-          const filePath = join(
-            process.cwd(),
-            'uploads',
-            'repair-photos',
-            photo.storageKey,
-          );
-
           try {
-            await rm(filePath, {
-              force: true,
-            });
+            await this
+              .deleteStoredPhoto(
+                photo.storageKey,
+              );
           } catch (error) {
             this.logger.warn(
               `No se pudo eliminar la foto ${photo.storageKey}: ${
@@ -394,23 +562,30 @@ export class RepairOrdersService {
     return {
       message:
         'Reparación eliminada correctamente.',
-      id: repairOrder.id,
-      code: repairOrder.code,
+
+      id:
+        repairOrder.id,
+
+      code:
+        repairOrder.code,
     };
   }
 
   async updateStatus(
     id: string,
+
     updateRepairStatusDto:
       UpdateRepairStatusDto,
+
     userId: string,
   ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id,
-        },
-      });
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -420,9 +595,12 @@ export class RepairOrdersService {
 
     if (
       repairOrder.status ===
-      updateRepairStatusDto.status
+      updateRepairStatusDto
+        .status
     ) {
-      return this.findOne(id);
+      return this.findOne(
+        id,
+      );
     }
 
     return this.prisma.$transaction(
@@ -434,35 +612,44 @@ export class RepairOrdersService {
 
           data: {
             status:
-              updateRepairStatusDto.status,
+              updateRepairStatusDto
+                .status,
 
             deliveredAt:
-              updateRepairStatusDto.status ===
+              updateRepairStatusDto
+                .status ===
               RepairStatus.DELIVERED
-                ? repairOrder.deliveredAt ??
+                ? repairOrder
+                    .deliveredAt ??
                   new Date()
                 : null,
           },
         });
 
-        await tx.repairStatusHistory.create({
-          data: {
-            repairOrderId: id,
+        await tx.repairStatusHistory
+          .create({
+            data: {
+              repairOrderId:
+                id,
 
-            status:
-              updateRepairStatusDto.status,
+              status:
+                updateRepairStatusDto
+                  .status,
 
-            changedById: userId,
-          },
-        });
+              changedById:
+                userId,
+            },
+          });
 
-        return tx.repairOrder.findUniqueOrThrow({
-          where: {
-            id,
-          },
+        return tx.repairOrder
+          .findUniqueOrThrow({
+            where: {
+              id,
+            },
 
-          include: this.fullOrderInclude,
-        });
+            include:
+              this.fullOrderInclude,
+          });
       },
     );
   }
@@ -473,15 +660,17 @@ export class RepairOrdersService {
     userId: string,
   ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id: repairOrderId,
-        },
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id:
+              repairOrderId,
+          },
 
-        select: {
-          id: true,
-        },
-      });
+          select: {
+            id: true,
+          },
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -489,35 +678,47 @@ export class RepairOrdersService {
       );
     }
 
-    await this.prisma.repairInternalNote.create({
-      data: {
-        repairOrderId,
-        content: content.trim(),
-        createdById: userId,
-      },
-    });
+    await this.prisma
+      .repairInternalNote
+      .create({
+        data: {
+          repairOrderId,
 
-    return this.prisma.repairOrder.findUnique({
-      where: {
-        id: repairOrderId,
-      },
+          content:
+            content.trim(),
 
-      include: this.fullOrderInclude,
-    });
+          createdById:
+            userId,
+        },
+      });
+
+    return this.prisma.repairOrder
+      .findUnique({
+        where: {
+          id:
+            repairOrderId,
+        },
+
+        include:
+          this.fullOrderInclude,
+      });
   }
 
   async updateDiagnosis(
     id: string,
+
     updateRepairDiagnosisDto:
       UpdateRepairDiagnosisDto,
+
     userId: string,
   ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id,
-        },
-      });
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -525,50 +726,58 @@ export class RepairOrdersService {
       );
     }
 
-    return this.prisma.repairOrder.update({
-      where: {
-        id,
-      },
-
-      data: {
-        diagnosis:
-          updateRepairDiagnosisDto.diagnosis,
-
-        diagnosisUpdatedById: userId,
-
-        diagnosisUpdatedAt:
-          new Date(),
-
-        estimatedCompletionDate:
-          updateRepairDiagnosisDto
-            .estimatedCompletionDate
-            ? new Date(
-                updateRepairDiagnosisDto
-                  .estimatedCompletionDate,
-              )
-            : repairOrder.estimatedCompletionDate,
-      },
-
-      include: this.fullOrderInclude,
-    });
-  }
-
-  async updateQuote(
-    id: string,
-    updateRepairQuoteDto:
-      UpdateRepairQuoteDto,
-    userId: string,
-  ) {
-    const repairOrder =
-      await this.prisma.repairOrder.findUnique({
+    return this.prisma.repairOrder
+      .update({
         where: {
           id,
         },
 
-        include: {
-          quote: true,
+        data: {
+          diagnosis:
+            updateRepairDiagnosisDto
+              .diagnosis,
+
+          diagnosisUpdatedById:
+            userId,
+
+          diagnosisUpdatedAt:
+            new Date(),
+
+          estimatedCompletionDate:
+            updateRepairDiagnosisDto
+              .estimatedCompletionDate
+              ? new Date(
+                  updateRepairDiagnosisDto
+                    .estimatedCompletionDate,
+                )
+              : repairOrder
+                  .estimatedCompletionDate,
         },
+
+        include:
+          this.fullOrderInclude,
       });
+  }
+
+  async updateQuote(
+    id: string,
+
+    updateRepairQuoteDto:
+      UpdateRepairQuoteDto,
+
+    userId: string,
+  ) {
+    const repairOrder =
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
+
+          include: {
+            quote: true,
+          },
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -580,17 +789,21 @@ export class RepairOrdersService {
       async (tx) => {
         await tx.repairQuote.upsert({
           where: {
-            repairOrderId: id,
+            repairOrderId:
+              id,
           },
 
           create: {
-            repairOrderId: id,
+            repairOrderId:
+              id,
 
             amount:
-              updateRepairQuoteDto.amount,
+              updateRepairQuoteDto
+                .amount,
 
             description:
-              updateRepairQuoteDto.description,
+              updateRepairQuoteDto
+                .description,
 
             status:
               QuoteStatus.PENDING,
@@ -601,10 +814,12 @@ export class RepairOrdersService {
 
           update: {
             amount:
-              updateRepairQuoteDto.amount,
+              updateRepairQuoteDto
+                .amount,
 
             description:
-              updateRepairQuoteDto.description,
+              updateRepairQuoteDto
+                .description,
 
             status:
               QuoteStatus.PENDING,
@@ -622,59 +837,71 @@ export class RepairOrdersService {
 
         if (
           repairOrder.status !==
-          RepairStatus.WAITING_APPROVAL
+          RepairStatus
+            .WAITING_APPROVAL
         ) {
-          await tx.repairOrder.update({
+          await tx.repairOrder
+            .update({
+              where: {
+                id,
+              },
+
+              data: {
+                status:
+                  RepairStatus
+                    .WAITING_APPROVAL,
+              },
+            });
+
+          await tx
+            .repairStatusHistory
+            .create({
+              data: {
+                repairOrderId:
+                  id,
+
+                status:
+                  RepairStatus
+                    .WAITING_APPROVAL,
+
+                changedById:
+                  userId,
+              },
+            });
+        }
+
+        return tx.repairOrder
+          .findUniqueOrThrow({
             where: {
               id,
             },
 
-            data: {
-              status:
-                RepairStatus.WAITING_APPROVAL,
-            },
+            include:
+              this.fullOrderInclude,
           });
-
-          await tx.repairStatusHistory.create({
-            data: {
-              repairOrderId: id,
-
-              status:
-                RepairStatus.WAITING_APPROVAL,
-
-              changedById:
-                userId,
-            },
-          });
-        }
-
-        return tx.repairOrder.findUniqueOrThrow({
-          where: {
-            id,
-          },
-
-          include: this.fullOrderInclude,
-        });
       },
     );
   }
 
   async updateQuoteStatus(
     id: string,
+
     updateQuoteStatusDto:
       UpdateQuoteStatusDto,
+
     userId: string,
   ) {
     const repairOrder =
-      await this.prisma.repairOrder.findUnique({
-        where: {
-          id,
-        },
+      await this.prisma.repairOrder
+        .findUnique({
+          where: {
+            id,
+          },
 
-        include: {
-          quote: true,
-        },
-      });
+          include: {
+            quote: true,
+          },
+        });
 
     if (!repairOrder) {
       throw new NotFoundException(
@@ -682,14 +909,17 @@ export class RepairOrdersService {
       );
     }
 
-    if (!repairOrder.quote) {
+    if (
+      !repairOrder.quote
+    ) {
       throw new NotFoundException(
         'La orden todavía no tiene un presupuesto',
       );
     }
 
     const nextRepairStatus =
-      updateQuoteStatusDto.status ===
+      updateQuoteStatusDto
+        .status ===
       QuoteStatus.APPROVED
         ? RepairStatus.IN_REPAIR
         : RepairStatus.UNREPAIRED;
@@ -698,12 +928,14 @@ export class RepairOrdersService {
       async (tx) => {
         await tx.repairQuote.update({
           where: {
-            repairOrderId: id,
+            repairOrderId:
+              id,
           },
 
           data: {
             status:
-              updateQuoteStatusDto.status,
+              updateQuoteStatusDto
+                .status,
 
             respondedAt:
               new Date(),
@@ -717,37 +949,43 @@ export class RepairOrdersService {
           repairOrder.status !==
           nextRepairStatus
         ) {
-          await tx.repairOrder.update({
+          await tx.repairOrder
+            .update({
+              where: {
+                id,
+              },
+
+              data: {
+                status:
+                  nextRepairStatus,
+              },
+            });
+
+          await tx
+            .repairStatusHistory
+            .create({
+              data: {
+                repairOrderId:
+                  id,
+
+                status:
+                  nextRepairStatus,
+
+                changedById:
+                  userId,
+              },
+            });
+        }
+
+        return tx.repairOrder
+          .findUniqueOrThrow({
             where: {
               id,
             },
 
-            data: {
-              status:
-                nextRepairStatus,
-            },
+            include:
+              this.fullOrderInclude,
           });
-
-          await tx.repairStatusHistory.create({
-            data: {
-              repairOrderId: id,
-
-              status:
-                nextRepairStatus,
-
-              changedById:
-                userId,
-            },
-          });
-        }
-
-        return tx.repairOrder.findUniqueOrThrow({
-          where: {
-            id,
-          },
-
-          include: this.fullOrderInclude,
-        });
       },
     );
   }
