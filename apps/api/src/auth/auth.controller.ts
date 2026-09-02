@@ -5,22 +5,36 @@ import {
   Patch,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
+
+import {
+  ThrottlerGuard,
+} from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 
 import { Public } from './decorators/public.decorator';
 
-import type { AuthenticatedRequest } from './guards/auth.guard';
+import {
+  ChangePasswordDto,
+} from './dto/change-password.dto';
+import {
+  LoginDto,
+} from './dto/login.dto';
+import {
+  SetupDto,
+} from './dto/setup.dto';
 
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { LoginDto } from './dto/login.dto';
-import { SetupDto } from './dto/setup.dto';
+import type {
+  AuthenticatedRequest,
+} from './guards/auth.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
+    private readonly authService:
+      AuthService,
   ) {}
 
   @Public()
@@ -29,35 +43,46 @@ export class AuthController {
     @Body()
     body: SetupDto,
   ) {
-    return this.authService.setup(body);
+    return this.authService.setup(
+      body,
+    );
   }
 
   @Public()
+  @UseGuards(
+    ThrottlerGuard,
+  )
   @Post('login')
   login(
     @Body()
     body: LoginDto,
   ) {
-    return this.authService.login(body);
+    return this.authService.login(
+      body,
+    );
   }
 
   @Get('me')
   me(
     @Req()
-    request: AuthenticatedRequest,
+    request:
+      AuthenticatedRequest,
   ) {
     return {
-      user: request.user,
+      user:
+        request.user,
     };
   }
 
   @Patch('change-password')
   changePassword(
     @Req()
-    request: AuthenticatedRequest,
+    request:
+      AuthenticatedRequest,
 
     @Body()
-    body: ChangePasswordDto,
+    body:
+      ChangePasswordDto,
   ) {
     return this.authService.changePassword(
       request.user!.sub,

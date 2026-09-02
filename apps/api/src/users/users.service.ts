@@ -15,27 +15,37 @@ import { promisify } from 'util';
 
 import { PrismaService } from '../database/prisma.service';
 
-const scrypt = promisify(scryptCallback);
+const scrypt = promisify(
+  scryptCallback,
+);
 
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma:
+      PrismaService,
   ) {}
 
   async count(): Promise<number> {
     return this.prisma.user.count();
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(
+    email: string,
+  ) {
     return this.prisma.user.findUnique({
       where: {
-        email: email.trim().toLowerCase(),
+        email:
+          email
+            .trim()
+            .toLowerCase(),
       },
     });
   }
 
-  async findById(id: string) {
+  async findById(
+    id: string,
+  ) {
     return this.prisma.user.findUnique({
       where: {
         id,
@@ -43,11 +53,13 @@ export class UsersService {
     });
   }
 
-  async createInitialAdmin(input: {
-    name: string;
-    email: string;
-    password: string;
-  }) {
+  async createInitialAdmin(
+    input: {
+      name: string;
+      email: string;
+      password: string;
+    },
+  ) {
     const userCount =
       await this.prisma.user.count();
 
@@ -58,7 +70,9 @@ export class UsersService {
     }
 
     const email =
-      input.email.trim().toLowerCase();
+      input.email
+        .trim()
+        .toLowerCase();
 
     const passwordHash =
       await this.hashPassword(
@@ -67,10 +81,15 @@ export class UsersService {
 
     return this.prisma.user.create({
       data: {
-        name: input.name.trim(),
+        name:
+          input.name.trim(),
+
         email,
+
         passwordHash,
-        role: 'ADMIN',
+
+        role:
+          'ADMIN',
       },
 
       select: {
@@ -92,9 +111,15 @@ export class UsersService {
     const [
       salt,
       storedHash,
-    ] = storedPasswordHash.split(':');
+    ] =
+      storedPasswordHash.split(
+        ':',
+      );
 
-    if (!salt || !storedHash) {
+    if (
+      !salt ||
+      !storedHash
+    ) {
       return false;
     }
 
@@ -125,226 +150,262 @@ export class UsersService {
   }
 
   async findAll() {
-  return this.prisma.user.findMany({
-    orderBy: {
-      createdAt: 'asc',
+    return this.prisma.user.findMany({
+      orderBy: {
+        createdAt:
+          'asc',
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async createTechnician(
+    input: {
+      name: string;
+      email: string;
+      password: string;
     },
+  ) {
+    const email =
+      input.email
+        .trim()
+        .toLowerCase();
 
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-}
+    const existingUser =
+      await this.prisma.user.findUnique({
+        where: {
+          email,
+        },
+      });
 
-async createTechnician(input: {
-  name: string;
-  email: string;
-  password: string;
-}) {
-  const email =
-    input.email.trim().toLowerCase();
+    if (existingUser) {
+      throw new ConflictException(
+        'Ya existe un usuario con ese email.',
+      );
+    }
 
-  const existingUser =
-    await this.prisma.user.findUnique({
-      where: {
+    const passwordHash =
+      await this.hashPassword(
+        input.password,
+      );
+
+    return this.prisma.user.create({
+      data: {
+        name:
+          input.name.trim(),
+
         email,
+
+        passwordHash,
+
+        role:
+          'TECHNICIAN',
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
-
-  if (existingUser) {
-    throw new ConflictException(
-      'Ya existe un usuario con ese email.',
-    );
   }
 
-  const passwordHash =
-    await this.hashPassword(
-      input.password,
-    );
+  async updateTechnicianStatus(
+    id: string,
+    isActive: boolean,
+  ) {
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
 
-  return this.prisma.user.create({
-    data: {
-      name: input.name.trim(),
-      email,
-      passwordHash,
-      role: 'TECHNICIAN',
-    },
+    if (!user) {
+      throw new NotFoundException(
+        'No se encontró el usuario.',
+      );
+    }
 
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-}
+    if (
+      user.role !==
+      'TECHNICIAN'
+    ) {
+      throw new BadRequestException(
+        'Solo se puede modificar el estado de usuarios técnicos.',
+      );
+    }
 
-async updateTechnicianStatus(
-  id: string,
-  isActive: boolean,
-) {
-  const user =
-    await this.prisma.user.findUnique({
+    return this.prisma.user.update({
       where: {
         id,
       },
+
+      data: {
+        isActive,
+
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
-
-  if (!user) {
-    throw new NotFoundException(
-      'No se encontró el usuario.',
-    );
   }
 
-  if (user.role !== 'TECHNICIAN') {
-    throw new BadRequestException(
-      'Solo se puede modificar el estado de usuarios técnicos.',
-    );
-  }
+  async resetTechnicianPassword(
+    id: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
 
-  return this.prisma.user.update({
-    where: {
-      id,
-    },
+    if (!user) {
+      throw new NotFoundException(
+        'No se encontró el usuario.',
+      );
+    }
 
-    data: {
-      isActive,
-    },
+    if (
+      user.role !==
+      'TECHNICIAN'
+    ) {
+      throw new BadRequestException(
+        'Solo se puede restablecer la contraseña de usuarios técnicos.',
+      );
+    }
 
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-}
+    const samePassword =
+      await this.verifyPassword(
+        newPassword,
+        user.passwordHash,
+      );
 
-async resetTechnicianPassword(
-  id: string,
-  newPassword: string,
-): Promise<void> {
-  const user =
-    await this.prisma.user.findUnique({
+    if (samePassword) {
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la actual.',
+      );
+    }
+
+    const passwordHash =
+      await this.hashPassword(
+        newPassword,
+      );
+
+    await this.prisma.user.update({
       where: {
         id,
       },
-    });
 
-  if (!user) {
-    throw new NotFoundException(
-      'No se encontró el usuario.',
-    );
-  }
+      data: {
+        passwordHash,
 
-  if (user.role !== 'TECHNICIAN') {
-    throw new BadRequestException(
-      'Solo se puede restablecer la contraseña de usuarios técnicos.',
-    );
-  }
-
-  const samePassword =
-    await this.verifyPassword(
-      newPassword,
-      user.passwordHash,
-    );
-
-  if (samePassword) {
-    throw new BadRequestException(
-      'La nueva contraseña debe ser diferente a la actual.',
-    );
-  }
-
-  const passwordHash =
-    await this.hashPassword(
-      newPassword,
-    );
-
-  await this.prisma.user.update({
-    where: {
-      id,
-    },
-
-    data: {
-      passwordHash,
-    },
-  });
-}
-async changePassword(
-  userId: string,
-  currentPassword: string,
-  newPassword: string,
-): Promise<void> {
-  const user =
-    await this.prisma.user.findUnique({
-      where: {
-        id: userId,
+        tokenVersion: {
+          increment: 1,
+        },
       },
     });
-
-  if (!user) {
-    throw new NotFoundException(
-      'No se encontró el usuario.',
-    );
   }
 
-  const currentPasswordIsValid =
-    await this.verifyPassword(
-      currentPassword,
-      user.passwordHash,
-    );
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id:
+            userId,
+        },
+      });
 
-  if (!currentPasswordIsValid) {
-    throw new BadRequestException(
-      'La contraseña actual es incorrecta.',
-    );
+    if (!user) {
+      throw new NotFoundException(
+        'No se encontró el usuario.',
+      );
+    }
+
+    const currentPasswordIsValid =
+      await this.verifyPassword(
+        currentPassword,
+        user.passwordHash,
+      );
+
+    if (
+      !currentPasswordIsValid
+    ) {
+      throw new BadRequestException(
+        'La contraseña actual es incorrecta.',
+      );
+    }
+
+    const samePassword =
+      await this.verifyPassword(
+        newPassword,
+        user.passwordHash,
+      );
+
+    if (samePassword) {
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la actual.',
+      );
+    }
+
+    const passwordHash =
+      await this.hashPassword(
+        newPassword,
+      );
+
+    await this.prisma.user.update({
+      where: {
+        id:
+          userId,
+      },
+
+      data: {
+        passwordHash,
+
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+    });
   }
-
-  const samePassword =
-    await this.verifyPassword(
-      newPassword,
-      user.passwordHash,
-    );
-
-  if (samePassword) {
-    throw new BadRequestException(
-      'La nueva contraseña debe ser diferente a la actual.',
-    );
-  }
-
-  const passwordHash =
-    await this.hashPassword(
-      newPassword,
-    );
-
-  await this.prisma.user.update({
-    where: {
-      id: userId,
-    },
-
-    data: {
-      passwordHash,
-    },
-  });
-}
 
   private async hashPassword(
     password: string,
   ): Promise<string> {
     const salt =
-      randomBytes(16).toString('hex');
+      randomBytes(16)
+        .toString(
+          'hex',
+        );
 
     const derivedKey =
       (await scrypt(
@@ -353,6 +414,8 @@ async changePassword(
         64,
       )) as Buffer;
 
-    return `${salt}:${derivedKey.toString('hex')}`;
+    return `${salt}:${derivedKey.toString(
+      'hex',
+    )}`;
   }
 }
