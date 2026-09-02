@@ -3,15 +3,19 @@ import {
   ConfigService,
 } from '@nestjs/config';
 import {
+  APP_GUARD,
+} from '@nestjs/core';
+import {
   JwtModule,
 } from '@nestjs/jwt';
+import {
+  ThrottlerModule,
+} from '@nestjs/throttler';
 
 import { UsersModule } from '../users/users.module';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-
-import { APP_GUARD } from '@nestjs/core';
 
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -20,11 +24,21 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [
     UsersModule,
 
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 5,
+      },
+    ]),
+
     JwtModule.registerAsync({
-      inject: [ConfigService],
+      inject: [
+        ConfigService,
+      ],
 
       useFactory: (
-        configService: ConfigService,
+        configService:
+          ConfigService,
       ) => ({
         secret:
           configService.getOrThrow<string>(
@@ -32,7 +46,8 @@ import { RolesGuard } from './guards/roles.guard';
           ),
 
         signOptions: {
-          expiresIn: 60 * 60 * 8,
+          expiresIn:
+            60 * 60 * 8,
         },
       }),
     }),
@@ -43,18 +58,19 @@ import { RolesGuard } from './guards/roles.guard';
   ],
 
   providers: [
-  AuthService,
+    AuthService,
 
-  {
-    provide: APP_GUARD,
-    useClass: AuthGuard,
-  },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
 
-  {
-    provide: APP_GUARD,
-    useClass: RolesGuard,
-  },
-],
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
+
   exports: [
     AuthService,
     JwtModule,
