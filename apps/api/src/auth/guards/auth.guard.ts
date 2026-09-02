@@ -18,6 +18,7 @@ export interface AuthUser {
   sub: string;
   email: string;
   role: 'ADMIN' | 'TECHNICIAN';
+  tokenVersion: number;
 }
 
 export interface AuthenticatedRequest
@@ -82,11 +83,22 @@ export class AuthGuard
     );
   }
 
-  request.user = {
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-  };
+  if (
+  payload.tokenVersion !==
+  user.tokenVersion
+) {
+  throw new UnauthorizedException(
+    'La sesión ya no es válida.',
+  );
+}
+
+request.user = {
+  sub: user.id,
+  email: user.email,
+  role: user.role,
+  tokenVersion:
+    user.tokenVersion,
+};
 } catch (error) {
   if (
     error instanceof UnauthorizedException
