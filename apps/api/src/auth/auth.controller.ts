@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 
 import {
-  ThrottlerGuard,
-} from '@nestjs/throttler';
+  ThrottlerBehindProxyGuard,
+} from './guards/throttler-behind-proxy.guard';
 
 import { AuthService } from './auth.service';
 
@@ -49,9 +49,9 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(
-    ThrottlerGuard,
-  )
+ @UseGuards(
+  ThrottlerBehindProxyGuard,
+)
   @Post('login')
   login(
     @Body()
